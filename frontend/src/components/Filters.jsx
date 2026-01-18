@@ -4,8 +4,9 @@ import styled from 'styled-components';
 
 const FiltersWrapper = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
+  align-items: center;
 `;
 
 const Select = styled.select`
@@ -16,6 +17,20 @@ const Select = styled.select`
   color: ${({ theme }) => theme.text};
 `;
 
+const DatePickerWrapper = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+`;
+
+const DateInput = styled.input`
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid ${({ theme }) => theme.chartBorder};
+    background-color: ${({ theme }) => theme.body};
+    color: ${({ theme }) => theme.text};
+`;
+
 const Filters = ({ filters, setFilters }) => {
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -24,11 +39,12 @@ const Filters = ({ filters, setFilters }) => {
 
     return (
         <FiltersWrapper>
-            <Select name="date" value={filters.date} onChange={handleFilterChange}>
-                <option value="all">All Dates</option>
-                <option value="last7days">Last 7 Days</option>
-                <option value="last30days">Last 30 Days</option>
-            </Select>
+            <DatePickerWrapper>
+                <label htmlFor="fromDate">From:</label>
+                <DateInput type="date" id="fromDate" name="fromDate" value={filters.fromDate} onChange={handleFilterChange} />
+                <label htmlFor="toDate">To:</label>
+                <DateInput type="date" id="toDate" name="toDate" value={filters.toDate} onChange={handleFilterChange} />
+            </DatePickerWrapper>
             <Select name="size" value={filters.size} onChange={handleFilterChange}>
                 <option value="all">All Sizes</option>
                 <option value="S">S</option>
@@ -47,3 +63,4 @@ const Filters = ({ filters, setFilters }) => {
 };
 
 export default Filters;
+

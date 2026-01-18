@@ -5,12 +5,13 @@ import { CgSun } from "react-icons/cg";
 import { HiMoon } from "react-icons/hi";
 
 const HeaderWrapper = styled.header`
-  background-color: ${({ theme }) => theme.header};
+  background: ${({ theme }) => theme.header};
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 `;
 
 const Title = styled.h1`

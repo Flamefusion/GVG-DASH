@@ -1,28 +1,60 @@
 
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes, useTheme } from 'styled-components';
 import KpiCard from '../components/KpiCard';
 import Modal from '../components/Modal';
 import Chart from '../components/Chart';
 import Filters from '../components/Filters';
+import { FiArrowDownCircle, FiCheckCircle, FiGitPullRequest, FiXCircle, FiArchive, FiLoader } from 'react-icons/fi';
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const PageWrapper = styled.div`
+  animation: ${fadeIn} 0.5s ease-in-out;
+`;
+
 
 const KpiGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 1.5rem;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
-const initialKpiData = [
-    { title: 'Total Inward', value: 1250 },
-    { title: 'QC Accepted', value: 1100 },
-    { title: 'Testing Accepted', value: 1050 },
-    { title: 'Total Rejected', value: 150 },
-    { title: 'Moved to Inventory', value: 1000 },
-    { title: 'Work in Progress', value: 50 },
-];
 
 const HomePage = () => {
+    const theme = useTheme();
     const [modal, setModal] = useState({ isOpen: false, data: null });
-    const [filters, setFilters] = useState({ date: 'all', size: 'all', sku: 'all' });
+    const [filters, setFilters] = useState({ fromDate: '', toDate: '', size: 'all', sku: 'all' });
+
+    const initialKpiData = [
+        { title: 'Total Inward', value: 1250, icon: <FiArrowDownCircle />, color: theme.kpi.totalInward },
+        { title: 'QC Accepted', value: 1100, icon: <FiCheckCircle />, color: theme.kpi.qcAccepted },
+        { title: 'Testing Accepted', value: 1050, icon: <FiGitPullRequest />, color: theme.kpi.testingAccepted },
+        { title: 'Total Rejected', value: 150, icon: <FiXCircle />, color: theme.kpi.totalRejected },
+        { title: 'Moved to Inventory', value: 1000, icon: <FiArchive />, color: theme.kpi.movedToInventory },
+        { title: 'Work in Progress', value: 50, icon: <FiLoader />, color: theme.kpi.workInProgress },
+    ];
+    
     const [kpiData, setKpiData] = useState(initialKpiData);
 
     useEffect(() => {
@@ -52,7 +84,7 @@ const HomePage = () => {
     };
 
     return (
-        <div>
+        <PageWrapper>
             <Filters filters={filters} setFilters={setFilters} />
             <KpiGrid>
                 {kpiData.map((kpi, index) => (
@@ -60,6 +92,8 @@ const HomePage = () => {
                         key={index}
                         title={kpi.title}
                         value={kpi.value}
+                        icon={kpi.icon}
+                        color={kpi.color}
                         onClick={() => openModal(kpi.title)}
                     />
                 ))}
@@ -72,7 +106,7 @@ const HomePage = () => {
             />
 
             <Chart />
-        </div>
+        </PageWrapper>
     );
 };
 

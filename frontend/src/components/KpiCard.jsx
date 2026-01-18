@@ -3,38 +3,55 @@ import React from 'react';
 import styled from 'styled-components';
 
 const CardWrapper = styled.div`
-  background-color: ${({ theme }) => theme.kpiCard};
+  background-color: ${props => props.color};
   border-radius: 8px;
   padding: 1.5rem;
-  color: ${({ theme }) => theme.text};
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: white;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  align-items: center;
 
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   }
+`;
+
+const IconWrapper = styled.div`
+    font-size: 3rem;
+    margin-right: 1.5rem;
+`;
+
+const ContentWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
 `;
 
 const Title = styled.h3`
   margin: 0;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
 `;
 
 const Value = styled.p`
-  margin: 0.5rem 0 0;
-  font-size: 2.5rem;
+  margin: 0.25rem 0 0;
+  font-size: 2.25rem;
   font-weight: 700;
 `;
 
-const KpiCard = ({ title, value, onClick }) => {
+const KpiCard = ({ title, value, icon, onClick, color }) => {
     return (
-        <CardWrapper onClick={onClick}>
-            <Title>{title}</Title>
-            <Value>{value}</Value>
+        <CardWrapper onClick={onClick} color={color}>
+            <IconWrapper>
+                {icon}
+            </IconWrapper>
+            <ContentWrapper>
+                <Title>{title}</Title>
+                <Value>{value}</Value>
+            </ContentWrapper>
         </CardWrapper>
     );
 };
