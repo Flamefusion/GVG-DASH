@@ -1,16 +1,15 @@
 
 import React from 'react';
-import { Calendar as CalendarIcon, Filter, Moon, Sun } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, Moon, Sun, Search } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Input } from '@/app/components/ui/input';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/popover';
 import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
 
 export const DashboardFilters: React.FC = () => {
-  const { filters, setFilters, darkMode, toggleDarkMode } = useDashboard();
+  const { filters, setFilters, darkMode, toggleDarkMode, skus, sizes, applyFilters } = useDashboard();
 
   return (
     <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -69,12 +68,7 @@ export const DashboardFilters: React.FC = () => {
           <SelectValue placeholder="Size" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Sizes</SelectItem>
-          <SelectItem value="Small">Small</SelectItem>
-          <SelectItem value="Medium">Medium</SelectItem>
-          <SelectItem value="Large">Large</SelectItem>
-          <SelectItem value="XL">XL</SelectItem>
-          <SelectItem value="XXL">XXL</SelectItem>
+          {sizes.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All Sizes' : s}</SelectItem>)}
         </SelectContent>
       </Select>
 
@@ -86,14 +80,14 @@ export const DashboardFilters: React.FC = () => {
           <SelectValue placeholder="SKU" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All SKUs</SelectItem>
-          <SelectItem value="SKU-A001">SKU-A001</SelectItem>
-          <SelectItem value="SKU-B002">SKU-B002</SelectItem>
-          <SelectItem value="SKU-C003">SKU-C003</SelectItem>
-          <SelectItem value="SKU-D004">SKU-D004</SelectItem>
-          <SelectItem value="SKU-E005">SKU-E005</SelectItem>
+          {skus.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All SKUs' : s}</SelectItem>)}
         </SelectContent>
       </Select>
+      
+      <Button onClick={applyFilters} className="flex items-center gap-2">
+        <Search size={16} />
+        Apply Filters
+      </Button>
 
       <div className="ml-auto">
         <Button
@@ -108,3 +102,4 @@ export const DashboardFilters: React.FC = () => {
     </div>
   );
 };
+

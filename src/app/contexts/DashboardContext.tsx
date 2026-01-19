@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-// import { kpiData, vqcChartData, ftChartData } from '../utils/mockData'; // Commented out, now fetching from backend
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 export interface DashboardFilters {
   dateRange: { from: Date | null; to: Date | null };
@@ -24,11 +23,14 @@ export interface ChartData {
 interface DashboardContextType {
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
+  applyFilters: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
   kpis: KPI | null;
   vqcWipChart: ChartData[];
   ftWipChart: ChartData[];
+  skus: string[];
+  sizes: string[];
   loading: boolean;
   error: string | null;
 }
@@ -37,67 +39,125 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
 
+const getWeekDateRange = () => {
+  const today = new Date();
+  const first = today.getDate() - today.getDay();
+  const last = first + 6;
+
+  const from = new Date(today.setDate(first));
+  const to = new Date(today.setDate(last));
+  
+  return { from, to };
+};
+
 export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>({
-    dateRange: { from: null, to: null },
+    dateRange: getWeekDateRange(),
     size: 'all',
     sku: 'all',
   });
   const [kpis, setKpis] = useState<KPI | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
   const [ftWipChart, setFtWipChart] = useState<ChartData[]>([]);
+  const [skus, setSkus] = useState<string[]>([]);
+  const [sizes, setSizes] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const toggleDarkMode = () => {
     setDarkMode((prev) => !prev);
   };
+  
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  }
+
+  const fetchData = useCallback(async (currentFilters: DashboardFilters) => {
+    setLoading(true);
+    setError(null);
+    
+    const params = new URLSearchParams();
+    if (currentFilters.dateRange.from) {
+      params.append('start_date', formatDate(currentFilters.dateRange.from));
+    }
+    if (currentFilters.dateRange.to) {
+      params.append('end_date', formatDate(currentFilters.dateRange.to));
+    }
+    if (currentFilters.size && currentFilters.size !== 'all') {
+      params.append('size', currentFilters.size);
+    }
+    if (currentFilters.sku && currentFilters.sku !== 'all') {
+      params.append('sku', currentFilters.sku);
+    }
+    const queryString = params.toString();
+
+    try {
+      const [kpiResponse, chartResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/kpis?${queryString}`),
+        fetch(`${BACKEND_URL}/charts?${queryString}`),
+      ]);
+
+      if (!kpiResponse.ok) throw new Error(`HTTP error! status: ${kpiResponse.status} for KPIs`);
+      if (!chartResponse.ok) throw new Error(`HTTP error! status: ${chartResponse.status} for Charts`);
+
+      const kpiData = await kpiResponse.json();
+      const chartData = await chartResponse.json();
+
+      setKpis(kpiData);
+      setVqcWipChart(chartData.vqc_wip_sku_wise);
+      setFtWipChart(chartData.ft_wip_sku_wise);
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err);
+      setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const [skusResponse, sizesResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/skus`),
+        fetch(`${BACKEND_URL}/sizes`),
+      ]);
+      if (!skusResponse.ok) throw new Error('Failed to fetch SKUs');
+      if (!sizesResponse.ok) throw new Error('Failed to fetch sizes');
+      
+      const skusData = await skusResponse.json();
+      const sizesData = await sizesResponse.json();
+
+      setSkus(['all', ...skusData]);
+      setSizes(['all', ...sizesData]);
+    } catch (err) {
+      console.error("Failed to fetch filter options:", err);
+      setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [kpiResponse, chartResponse] = await Promise.all([
-          fetch(`${BACKEND_URL}/kpis`),
-          fetch(`${BACKEND_URL}/charts`),
-        ]);
+    fetchFilterOptions();
+    fetchData(filters);
+  }, [fetchData, fetchFilterOptions]);
 
-        if (!kpiResponse.ok) {
-          throw new Error(`HTTP error! status: ${kpiResponse.status} for KPIs`);
-        }
-        if (!chartResponse.ok) {
-          throw new Error(`HTTP error! status: ${chartResponse.status} for Charts`);
-        }
-
-        const kpiData = await kpiResponse.json();
-        const chartData = await chartResponse.json();
-
-        setKpis(kpiData);
-        setVqcWipChart(chartData.vqc_wip_sku_wise);
-        setFtWipChart(chartData.ft_wip_sku_wise);
-      } catch (err) {
-        console.error("Failed to fetch dashboard data:", err);
-        setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []); // Empty dependency array means this effect runs once on mount
+  const applyFilters = () => {
+    fetchData(filters);
+  };
 
   return (
     <DashboardContext.Provider
       value={{
         filters,
         setFilters,
+        applyFilters,
         darkMode,
         toggleDarkMode,
         kpis,
         vqcWipChart,
         ftWipChart,
+        skus,
+        sizes,
         loading,
         error,
       }}
