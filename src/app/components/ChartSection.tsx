@@ -68,12 +68,12 @@ export const ChartSection: React.FC = () => {
       <div className="flex justify-center gap-4 mb-4">
         {showVQC ? (
           <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP Serial Number Count</p>
+            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
           </div>
         ) : (
           <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP Serial Number Count</p>
+            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
           </div>
         )}

@@ -26,7 +26,7 @@ export const DashboardFilters: React.FC = () => {
               className={`w-40 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange.from ? format(filters.dateRange.from, "MM/dd/yyyy") : <span>From Date</span>}
+              {filters.dateRange.from ? format(filters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -46,7 +46,7 @@ export const DashboardFilters: React.FC = () => {
               className={`w-40 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange.to ? format(filters.dateRange.to, "MM/dd/yyyy") : <span>To Date</span>}
+              {filters.dateRange.to ? format(filters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
