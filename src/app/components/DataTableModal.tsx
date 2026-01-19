@@ -115,7 +115,7 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`max-w-6xl max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-gray-800 text-white' : ''}`}>
+      <DialogContent className={`max-w-full max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-gray-800 text-white' : ''}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span className="text-2xl">{title}</span>
