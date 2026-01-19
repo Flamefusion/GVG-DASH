@@ -8,8 +8,8 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 export const ChartSection: React.FC = () => {
   const [showVQC, setShowVQC] = useState(true);
   const { vqcWipChart, ftWipChart, loading, error, darkMode } = useDashboard();
-  const vqcWipCount = vqcWipChart.length;
-  const ftWipCount = ftWipChart.length;
+  const vqcWipCount = vqcWipChart.reduce((acc, cur) => acc + cur.count, 0);
+  const ftWipCount = ftWipChart.reduce((acc, cur) => acc + cur.count, 0);
 
   if (loading) {
     return (
@@ -66,14 +66,17 @@ export const ChartSection: React.FC = () => {
         </Button>
       </div>
       <div className="flex justify-center gap-4 mb-4">
-        <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP SKU WISE</p>
-          <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
-        </div>
-        <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP SKU WISE</p>
-          <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
-        </div>
+        {showVQC ? (
+          <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP Serial Number Count</p>
+            <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
+          </div>
+        ) : (
+          <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP Serial Number Count</p>
+            <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
+          </div>
+        )}
       </div>
       <AnimatePresence mode="wait">
         <motion.div
