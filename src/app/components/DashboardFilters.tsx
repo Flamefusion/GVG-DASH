@@ -64,7 +64,7 @@ export const DashboardFilters: React.FC = () => {
         value={filters.size}
         onValueChange={(value) => setFilters({ ...filters, size: value })}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
           <SelectValue placeholder="Size" />
         </SelectTrigger>
         <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
@@ -76,7 +76,7 @@ export const DashboardFilters: React.FC = () => {
         value={filters.sku}
         onValueChange={(value) => setFilters({ ...filters, sku: value })}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
           <SelectValue placeholder="SKU" />
         </SelectTrigger>
         <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
