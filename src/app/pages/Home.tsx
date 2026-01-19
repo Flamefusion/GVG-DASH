@@ -13,8 +13,20 @@ import { KPICard } from '@/app/components/KPICard';
 import { ChartSection } from '@/app/components/ChartSection';
 import { DataTableModal } from '@/app/components/DataTableModal';
 import { DashboardFilters } from '@/app/components/DashboardFilters';
-import { kpiData, DataRow } from '@/app/utils/mockData';
 import { useDashboard } from '@/app/contexts/DashboardContext';
+
+// Define a placeholder DataRow interface if it's still needed for DataTableModal,
+// otherwise remove it if the modal will be refactored to not expect this structure.
+interface DataRow {
+  id: number;
+  date: string;
+  sku: string;
+  size: string;
+  quantity: number;
+  status: string;
+  inspector: string;
+  remarks: string;
+}
 
 export const Home: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -22,63 +34,79 @@ export const Home: React.FC = () => {
     title: '',
     data: [],
   });
-  const { darkMode } = useDashboard();
+  const { kpis, loading, error, darkMode } = useDashboard();
 
   const handleKPIClick = (title: string, data: DataRow[]) => {
     setModalData({ title, data });
     setModalOpen(true);
   };
 
-  const kpiCards = [
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-xl text-gray-500 dark:text-gray-400">
+        Loading dashboard data...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-xl text-red-500">
+        Error: {error}
+      </div>
+    );
+  }
+
+  const kpiCards = kpis ? [
     {
       title: 'TOTAL INWARD',
-      value: kpiData.totalInward.value,
-      change: kpiData.totalInward.change,
+      value: kpis.total_inward,
+      change: '+12%', // Static for now, consider calculating dynamic change if data is available
       icon: Package,
       color: '#3b82f6',
-      data: kpiData.totalInward.data,
+      data: [], // No detailed data from backend for this, provide empty array
     },
     {
       title: 'QC ACCEPTED',
-      value: kpiData.qcAccepted.value,
-      change: kpiData.qcAccepted.change,
+      value: kpis.qc_accepted,
+      change: '+8%',
       icon: CheckCircle,
       color: '#10b981',
-      data: kpiData.qcAccepted.data,
+      data: [],
     },
     {
       title: 'TESTING ACCEPTED',
-      value: kpiData.testingAccepted.value,
-      change: kpiData.testingAccepted.change,
+      value: kpis.testing_accepted,
+      change: '+5%',
       icon: FlaskConical,
       color: '#8b5cf6',
-      data: kpiData.testingAccepted.data,
+      data: [],
     },
     {
       title: 'TOTAL REJECTED',
-      value: kpiData.totalRejected.value,
-      change: kpiData.totalRejected.change,
+      value: kpis.total_rejected,
+      change: '-3%',
       icon: XCircle,
       color: '#ef4444',
-      data: kpiData.totalRejected.data,
+      data: [],
     },
     {
       title: 'MOVED TO INVENTORY',
-      value: kpiData.movedToInventory.value,
-      change: kpiData.movedToInventory.change,
+      value: kpis.moved_to_inventory,
+      change: '+10%',
       icon: Archive,
       color: '#f59e0b',
-      data: kpiData.movedToInventory.data,
+      data: [],
     },
     {
       title: 'WORK IN PROGRESS',
-      value: kpiData.workInProgress.value,
-      change: kpiData.workInProgress.change,
+      value: kpis.work_in_progress,
+      change: '+2%',
       icon: Clock,
       color: '#06b6d4',
-      data: kpiData.workInProgress.data,
+      data: [],
     },
-  ];
+  ] : []; // If kpis is null, provide an empty array
 
   return (
     <div

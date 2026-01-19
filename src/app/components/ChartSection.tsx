@@ -3,14 +3,28 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { vqcChartData, ftChartData } from '@/app/utils/mockData';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 
 export const ChartSection: React.FC = () => {
   const [showVQC, setShowVQC] = useState(true);
-  const { darkMode } = useDashboard();
+  const { vqcWipChart, ftWipChart, loading, error, darkMode } = useDashboard();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-lg text-gray-500 dark:text-gray-400">
+        Loading chart data...
+      </div>
+    );
+  }
 
-  const currentData = showVQC ? vqcChartData : ftChartData;
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-lg text-red-500">
+        Error: {error}
+      </div>
+    );
+  }
+
+  const currentData = showVQC ? vqcWipChart : ftWipChart;
   const currentTitle = showVQC ? 'VQC WIP SKU WISE' : 'FT WIP SKU WISE';
   const barColor = showVQC ? '#f59e0b' : '#10b981';
 
