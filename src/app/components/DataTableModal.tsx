@@ -1,39 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import { DataRow } from '@/app/utils/mockData';
 import { useDashboard } from '@/app/contexts/DashboardContext';
+
+interface DataRow {
+  vqc_inward_date: string;
+  serial_number: string;
+  vqc_status: string;
+  vqc_reason: string;
+  ft_inward_date: string;
+  ft_status: string;
+  ft_reason: string;
+  cs_status: string;
+  cs_reason: string;
+  size: string;
+  sku: string;
+  ctpf_mo: string;
+  air_mo: string;
+  vendor: string;
+  last_updated_at: string;
+}
 
 interface DataTableModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  data: DataRow[];
+  kpiKey: string;
 }
 
 const ROWS_PER_PAGE = 100;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
 
-export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, title, data }) => {
+export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, title, kpiKey }) => {
+  const { darkMode, filters } = useDashboard();
   const [currentPage, setCurrentPage] = useState(1);
-  const { darkMode } = useDashboard();
+  const [totalPages, setTotalPages] = useState(1);
+  const [data, setData] = useState<DataRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const totalPages = Math.ceil(data.length / ROWS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-  const endIndex = startIndex + ROWS_PER_PAGE;
-  const currentData = data.slice(startIndex, endIndex);
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  }
 
-  const downloadCSV = () => {
-    const headers = ['ID', 'Date', 'SKU', 'Size', 'Quantity', 'Status', 'Inspector', 'Remarks'];
+  const fetchData = useCallback(async (page: number) => {
+    if (!open || !kpiKey) return;
+    setLoading(true);
+    setError(null);
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(ROWS_PER_PAGE),
+    });
+
+    if (filters.dateRange.from) params.append('start_date', formatDate(filters.dateRange.from));
+    if (filters.dateRange.to) params.append('end_date', formatDate(filters.dateRange.to));
+    if (filters.size && filters.size !== 'all') params.append('size', filters.size);
+    if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch data');
+      const result = await response.json();
+      setData(result.data);
+      setTotalPages(result.total_pages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [open, kpiKey, filters]);
+
+  useEffect(() => {
+    fetchData(currentPage);
+  }, [fetchData, currentPage]);
+  
+  useEffect(() => {
+    // Reset to first page when modal is opened for a new KPI
+    setCurrentPage(1);
+  }, [kpiKey]);
+
+
+  const downloadCSV = async () => {
+    const params = new URLSearchParams();
+    if (filters.dateRange.from) params.append('start_date', formatDate(filters.dateRange.from));
+    if (filters.dateRange.to) params.append('end_date', formatDate(filters.dateRange.to));
+    if (filters.size && filters.size !== 'all') params.append('size', filters.size);
+    if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
+
+    // Fetch all data for CSV export
+    const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?limit=10000&${params.toString()}`);
+    const result = await response.json();
+    const allData = result.data;
+    
+    const headers = Object.keys(allData[0] || {});
     const csvContent = [
       headers.join(','),
-      ...data.map((row) =>
-        [row.id, row.date, row.sku, row.size, row.quantity, row.status, row.inspector, row.remarks].join(',')
+      ...allData.map((row: any) =>
+        headers.map(header => row[header]).join(',')
       ),
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -58,46 +129,26 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Inspector</TableHead>
-                <TableHead>Remarks</TableHead>
+                {Object.keys(data[0] || {}).map(key => <TableHead key={key}>{key}</TableHead>)}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentData.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.id}</TableCell>
-                  <TableCell>{row.date}</TableCell>
-                  <TableCell>{row.sku}</TableCell>
-                  <TableCell>{row.size}</TableCell>
-                  <TableCell>{row.quantity}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs ${
-                        row.status === 'Approved'
-                          ? 'bg-green-100 text-green-700'
-                          : row.status === 'Rejected'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {row.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{row.inspector}</TableCell>
-                  <TableCell>{row.remarks}</TableCell>
-                </TableRow>
-              ))}
+              {loading ? (
+                <TableRow><TableCell colSpan={15}>Loading...</TableCell></TableRow>
+              ) : error ? (
+                <TableRow><TableCell colSpan={15} className="text-red-500">{error}</TableCell></TableRow>
+              ) : (
+                data.map((row, index) => (
+                  <TableRow key={index}>
+                    {Object.values(row).map((value, i) => <TableCell key={i}>{String(value)}</TableCell>)}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
           <div className="mt-4 flex items-center justify-between">
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of {data.length} entries
+              Page {currentPage} of {totalPages}
             </p>
             <div className="flex gap-2">
               <Button
@@ -109,9 +160,6 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
                 <ChevronLeft size={16} />
                 Previous
               </Button>
-              <span className={`flex items-center px-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Page {currentPage} of {totalPages}
-              </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -128,3 +176,4 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
     </Dialog>
   );
 };
+

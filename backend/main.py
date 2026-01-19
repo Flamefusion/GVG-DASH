@@ -178,6 +178,70 @@ async def get_sizes():
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for sizes: {e}")
 
 
+@app.get("/kpi-data/{kpi_name}")
+async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+
+    kpi_conditions = {
+        'total_inward': "serial_number IS NOT NULL",
+        'qc_accepted': "vqc_status = 'ACCEPTED'",
+        'testing_accepted': "UPPER(ft_status) = 'ACCEPTED'",
+        'total_rejected': """
+            (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
+            (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
+            (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
+        """,
+        'moved_to_inventory': "cs_status = 'ACCEPTED'",
+        'work_in_progress': """
+            serial_number IS NOT NULL AND
+            NOT ((UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
+                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
+                 (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)) AND
+            NOT (cs_status = 'ACCEPTED')
+        """
+    }
+
+    if kpi_name not in kpi_conditions:
+        raise HTTPException(status_code=404, detail="KPI name not found")
+
+    base_where_clause = build_where_clause(start_date, end_date, size, sku)
+    kpi_where_condition = kpi_conditions[kpi_name]
+
+    if base_where_clause:
+        full_where_clause = f"{base_where_clause} AND ({kpi_where_condition})"
+    else:
+        full_where_clause = f"WHERE {kpi_where_condition}"
+    
+    offset = (page - 1) * limit
+
+    count_query = f"SELECT COUNT(DISTINCT serial_number) as total FROM {TABLE} {full_where_clause}"
+    
+    data_query = f"""
+        SELECT *
+        FROM {TABLE}
+        {full_where_clause}
+        ORDER BY vqc_inward_date DESC
+        LIMIT {limit} OFFSET {offset}
+    """
+
+    try:
+        count_job = client.query(count_query)
+        total_rows = list(count_job.result())[0]['total']
+        total_pages = (total_rows + limit - 1) // limit
+
+        data_job = client.query(data_query)
+        data = [dict(row) for row in data_job.result()]
+
+        return {
+            "data": data,
+            "total_pages": total_pages,
+            "current_page": page,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPI data: {e}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

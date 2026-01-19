@@ -15,29 +15,15 @@ import { DataTableModal } from '@/app/components/DataTableModal';
 import { DashboardFilters } from '@/app/components/DashboardFilters';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 
-// Define a placeholder DataRow interface if it's still needed for DataTableModal,
-// otherwise remove it if the modal will be refactored to not expect this structure.
-interface DataRow {
-  id: number;
-  date: string;
-  sku: string;
-  size: string;
-  quantity: number;
-  status: string;
-  inspector: string;
-  remarks: string;
-}
-
 export const Home: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalData, setModalData] = useState<{ title: string; data: DataRow[] }>({
-    title: '',
-    data: [],
-  });
+  const [modalTitle, setModalTitle] = useState('');
+  const [selectedKpi, setSelectedKpi] = useState('');
   const { kpis, loading, error, darkMode } = useDashboard();
 
-  const handleKPIClick = (title: string, data: DataRow[]) => {
-    setModalData({ title, data });
+  const handleKPIClick = (title: string, kpiKey: string) => {
+    setModalTitle(title);
+    setSelectedKpi(kpiKey);
     setModalOpen(true);
   };
 
@@ -60,53 +46,53 @@ export const Home: React.FC = () => {
   const kpiCards = kpis ? [
     {
       title: 'TOTAL INWARD',
+      kpiKey: 'total_inward',
       value: kpis.total_inward,
-      change: '+12%', // Static for now, consider calculating dynamic change if data is available
+      change: '+12%',
       icon: Package,
       color: '#3b82f6',
-      data: [], // No detailed data from backend for this, provide empty array
     },
     {
       title: 'QC ACCEPTED',
+      kpiKey: 'qc_accepted',
       value: kpis.qc_accepted,
       change: '+8%',
       icon: CheckCircle,
       color: '#10b981',
-      data: [],
     },
     {
       title: 'TESTING ACCEPTED',
+      kpiKey: 'testing_accepted',
       value: kpis.testing_accepted,
       change: '+5%',
       icon: FlaskConical,
       color: '#8b5cf6',
-      data: [],
     },
     {
       title: 'TOTAL REJECTED',
+      kpiKey: 'total_rejected',
       value: kpis.total_rejected,
       change: '-3%',
       icon: XCircle,
       color: '#ef4444',
-      data: [],
     },
     {
       title: 'MOVED TO INVENTORY',
+      kpiKey: 'moved_to_inventory',
       value: kpis.moved_to_inventory,
       change: '+10%',
       icon: Archive,
       color: '#f59e0b',
-      data: [],
     },
     {
       title: 'WORK IN PROGRESS',
+      kpiKey: 'work_in_progress',
       value: kpis.work_in_progress,
       change: '+2%',
       icon: Clock,
       color: '#06b6d4',
-      data: [],
     },
-  ] : []; // If kpis is null, provide an empty array
+  ] : [];
 
   return (
     <div
@@ -176,7 +162,7 @@ export const Home: React.FC = () => {
               change={card.change}
               icon={card.icon}
               color={card.color}
-              onClick={() => handleKPIClick(card.title, card.data)}
+              onClick={() => handleKPIClick(card.title, card.kpiKey)}
             />
           </motion.div>
         ))}
@@ -190,12 +176,14 @@ export const Home: React.FC = () => {
         <ChartSection />
       </motion.div>
 
-      <DataTableModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={modalData.title}
-        data={modalData.data}
-      />
+      {modalOpen && (
+        <DataTableModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={modalTitle}
+          kpiKey={selectedKpi}
+        />
+      )}
     </div>
   );
 };
