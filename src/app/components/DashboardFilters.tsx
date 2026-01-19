@@ -26,7 +26,7 @@ export const DashboardFilters: React.FC = () => {
               className={`w-40 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange.from ? format(filters.dateRange.from, "PPP") : <span>From Date</span>}
+              {filters.dateRange.from ? format(filters.dateRange.from, "MM/dd/yyyy") : <span>From Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -46,7 +46,7 @@ export const DashboardFilters: React.FC = () => {
               className={`w-40 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange.to ? format(filters.dateRange.to, "PPP") : <span>To Date</span>}
+              {filters.dateRange.to ? format(filters.dateRange.to, "MM/dd/yyyy") : <span>To Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -67,8 +67,8 @@ export const DashboardFilters: React.FC = () => {
         <SelectTrigger className="w-40">
           <SelectValue placeholder="Size" />
         </SelectTrigger>
-        <SelectContent>
-          {sizes.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All Sizes' : s}</SelectItem>)}
+        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+          {sizes.map(s => <SelectItem key={s} value={s} className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>{s === 'all' ? 'All Sizes' : s}</SelectItem>)}
         </SelectContent>
       </Select>
 
@@ -79,8 +79,8 @@ export const DashboardFilters: React.FC = () => {
         <SelectTrigger className="w-40">
           <SelectValue placeholder="SKU" />
         </SelectTrigger>
-        <SelectContent>
-          {skus.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All SKUs' : s}</SelectItem>)}
+        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+          {skus.map(s => <SelectItem key={s} value={s} className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>{s === 'all' ? 'All SKUs' : s}</SelectItem>)}
         </SelectContent>
       </Select>
       
