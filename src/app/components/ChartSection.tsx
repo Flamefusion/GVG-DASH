@@ -8,6 +8,9 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 export const ChartSection: React.FC = () => {
   const [showVQC, setShowVQC] = useState(true);
   const { vqcWipChart, ftWipChart, loading, error, darkMode } = useDashboard();
+  const vqcWipCount = vqcWipChart.length;
+  const ftWipCount = ftWipChart.length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-lg text-gray-500 dark:text-gray-400">
@@ -61,6 +64,16 @@ export const ChartSection: React.FC = () => {
           Toggle to {showVQC ? 'FT WIP' : 'VQC WIP'}
           <ChevronRight size={16} />
         </Button>
+      </div>
+      <div className="flex justify-center gap-4 mb-4">
+        <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP SKU WISE</p>
+          <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
+        </div>
+        <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP SKU WISE</p>
+          <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
+        </div>
       </div>
       <AnimatePresence mode="wait">
         <motion.div
