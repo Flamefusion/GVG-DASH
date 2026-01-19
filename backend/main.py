@@ -60,10 +60,20 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     WITH KpiMetrics AS (
         SELECT
             COUNT(DISTINCT serial_number) AS total_inward,
+            
             COUNT(DISTINCT CASE WHEN vqc_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
-            COUNT(DISTINCT CASE WHEN ft_status = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
-            COUNT(DISTINCT CASE WHEN vqc_status = 'REJECTED' OR ft_status = 'REJECTED' THEN serial_number END) AS total_rejected,
+            
+            COUNT(DISTINCT CASE WHEN UPPER(ft_status) = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
+            
+            COUNT(DISTINCT CASE 
+                WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
+                WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
+                WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
+                ELSE NULL
+            END) AS total_rejected,
+
             COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory
+            
         FROM {TABLE}
         {where_clause}
     )
