@@ -22,6 +22,9 @@ export const Nav: React.FC = () => {
         <NavLink to="/analysis" className={getLinkClass}>
           Analysis
         </NavLink>
+        <NavLink to="/report" className={getLinkClass}>
+          Report
+        </NavLink>
       </div>
     </nav>
   );
