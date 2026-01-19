@@ -41,32 +41,32 @@ export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon: Ic
       {/* Glassmorphism overlay */}
       <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       
-      <div className="relative z-10 flex flex-col h-full text-white">
+      <div className="relative z-10 flex flex-col h-full text-black">
         <div className="flex items-center justify-between mb-3">
           <motion.div
             whileHover={{ rotate: 15, scale: 1.1 }}
             className="rounded-full p-3 bg-white/20 backdrop-blur-md"
           >
-            <Icon size={24} color="white" />
+            <Icon size={24} color="black" />
           </motion.div>
         </div>
         
         <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/90 mb-2">{title}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-black mb-2">{title}</p>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-3xl font-extrabold text-white mb-2"
+            className="text-3xl font-extrabold text-black mb-2"
           >
             {value.toLocaleString()}
           </motion.p>
           <div className="flex items-center gap-1">
             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              change.startsWith('+') ? 'bg-green-400/30 text-green-100' : 'bg-red-400/30 text-red-100'
+              change.startsWith('+') ? 'bg-green-400/30 text-black' : 'bg-red-400/30 text-black'
             }`}>
               {change}
             </span>
-            <span className="text-xs text-white/70">vs last month</span>
+            <span className="text-xs text-black">vs last month</span>
           </div>
         </div>
       </div>
