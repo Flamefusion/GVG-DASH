@@ -1,9 +1,13 @@
+
 import React from 'react';
-import { Calendar, Filter, Moon, Sun } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, Moon, Sun } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Input } from '@/app/components/ui/input';
 import { useDashboard } from '@/app/contexts/DashboardContext';
+import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/popover';
+import { Calendar } from '@/app/components/ui/calendar';
+import { format } from 'date-fns';
 
 export const DashboardFilters: React.FC = () => {
   const { filters, setFilters, darkMode, toggleDarkMode } = useDashboard();
@@ -16,38 +20,45 @@ export const DashboardFilters: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-2">
-        <Calendar size={16} className={darkMode ? 'text-white' : 'text-gray-700'} />
-        <Input
-          type="date"
-          value={filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : ''}
-          onChange={(e) => {
-            setFilters({
-              ...filters,
-              dateRange: {
-                ...filters.dateRange,
-                from: e.target.value ? new Date(e.target.value) : null,
-              },
-            });
-          }}
-          className={`w-40 ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
-          placeholder="From Date"
-        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={`w-40 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {filters.dateRange.from ? format(filters.dateRange.from, "PPP") : <span>From Date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={filters.dateRange.from}
+              onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, from: date } })}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
         <span className={darkMode ? 'text-white' : 'text-gray-700'}>to</span>
-        <Input
-          type="date"
-          value={filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : ''}
-          onChange={(e) => {
-            setFilters({
-              ...filters,
-              dateRange: {
-                ...filters.dateRange,
-                to: e.target.value ? new Date(e.target.value) : null,
-              },
-            });
-          }}
-          className={`w-40 ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
-          placeholder="To Date"
-        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={`w-40 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {filters.dateRange.to ? format(filters.dateRange.to, "PPP") : <span>To Date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={filters.dateRange.to}
+              onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, to: date } })}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <Select
