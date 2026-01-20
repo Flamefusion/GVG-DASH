@@ -2,11 +2,20 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useDashboard } from '@/app/contexts/DashboardContext';
-import { rejectionStatusData, rejectionBreakdownData } from '@/app/mockData';
 
-export const RejectionStatusCharts: React.FC = () => {
+interface ChartData {
+  name: string;
+  value: number;
+}
+
+interface RejectionStatusChartsProps {
+  acceptedVsRejected: ChartData[];
+  rejectionBreakdown: ChartData[];
+}
+
+export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ acceptedVsRejected, rejectionBreakdown }) => {
   const { darkMode } = useDashboard();
-  const COLORS = ['#10b981', '#ef4444'];
+  const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#3b82f6'];
   const BREAKDOWN_COLORS = ['#f59e0b', '#8b5cf6', '#06b6d4'];
 
   return (
@@ -16,7 +25,7 @@ export const RejectionStatusCharts: React.FC = () => {
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
-              data={rejectionStatusData}
+              data={acceptedVsRejected}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -25,7 +34,7 @@ export const RejectionStatusCharts: React.FC = () => {
               paddingAngle={5}
               dataKey="value"
             >
-              {rejectionStatusData.map((entry, index) => (
+              {acceptedVsRejected.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -39,7 +48,7 @@ export const RejectionStatusCharts: React.FC = () => {
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
-              data={rejectionBreakdownData}
+              data={rejectionBreakdown}
               cx="50%"
               cy="50%"
               outerRadius={80}
@@ -47,7 +56,7 @@ export const RejectionStatusCharts: React.FC = () => {
               dataKey="value"
               label
             >
-              {rejectionBreakdownData.map((entry, index) => (
+              {rejectionBreakdown.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]} />
               ))}
             </Pie>

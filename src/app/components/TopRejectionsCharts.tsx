@@ -2,9 +2,19 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useDashboard } from '@/app/contexts/DashboardContext';
-import { topVqcRejections, topFtRejections, topCsRejections } from '@/app/mockData';
 
-export const TopRejectionsCharts: React.FC = () => {
+interface ChartData {
+  name: string;
+  value: number;
+}
+
+interface TopRejectionsChartsProps {
+  topVqcRejections: ChartData[];
+  topFtRejections: ChartData[];
+  topCsRejections: ChartData[];
+}
+
+export const TopRejectionsCharts: React.FC<TopRejectionsChartsProps> = ({ topVqcRejections, topFtRejections, topCsRejections }) => {
   const { darkMode } = useDashboard();
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f', '#ffbb28', '#ff8042', '#ff7300', '#34a853'];
 

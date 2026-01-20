@@ -34,20 +34,21 @@ except Exception as e:
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
 
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str]) -> str:
-    where_conditions = []
-    if start_date and end_date:
-        where_conditions.append(f"vqc_inward_date BETWEEN '{start_date}' AND '{end_date}'")
-    if size and size.lower() != 'all':
-        where_conditions.append(f"size = '{size}'")
-    if sku and sku.lower() != 'all':
-        where_conditions.append(f"sku = '{sku}'")
-    
-    return f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+from analysis import get_analysis_data, build_where_clause
 
 @app.get("/")
 def read_root():
     return {"message": "GVG Dashboard Backend is running"}
+
+@app.get("/analysis")
+async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    try:
+        analysis_data = get_analysis_data(client, TABLE, start_date, end_date, size, sku)
+        return analysis_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
 
 @app.get("/kpis")
 async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):

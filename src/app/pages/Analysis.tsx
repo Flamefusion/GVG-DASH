@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'motion/react';
 import {
@@ -12,55 +11,64 @@ import {
 import { KPICard } from '@/app/components/KPICard';
 import { DashboardFilters } from '@/app/components/DashboardFilters';
 import { useDashboard } from '@/app/contexts/DashboardContext';
-import { analysisKpis } from '@/app/mockData';
 import { RejectionStatusCharts } from '@/app/components/RejectionStatusCharts';
 import { RejectionTrendChart } from '@/app/components/RejectionTrendChart';
 import { TopRejectionsCharts } from '@/app/components/TopRejectionsCharts';
 import { VendorRejectionCharts } from '@/app/components/VendorRejectionCharts';
+import { Skeleton } from '@/app/components/ui/skeleton';
 
 const Analysis: React.FC = () => {
-  const { darkMode } = useDashboard();
+  const { darkMode, analysisData, loading, error } = useDashboard();
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="grid grid-cols-6 gap-4 mb-8">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+        <Skeleton className="h-96 mb-8" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (error) return <div className="p-8 text-red-500">{error}</div>;
+  if (!analysisData) return <div className="p-8">No analysis data available.</div>;
 
   const kpiCards = [
     {
       title: 'TOTAL REJECTION',
-      value: analysisKpis.totalRejection,
-      change: '+5%',
+      value: analysisData.kpis.total_rejected.toLocaleString(),
       icon: XCircle,
       color: '#ef4444',
     },
     {
       title: '3DE TECH REJECTION',
-      value: analysisKpis['3deTechRejection'],
-      change: '+3%',
+      value: analysisData.kpis.de_tech_rejection.toLocaleString(),
       icon: Package,
       color: '#f59e0b',
     },
     {
       title: 'IHC REJECTION',
-      value: analysisKpis.ihcRejection,
-      change: '-2%',
+      value: analysisData.kpis.ihc_rejection.toLocaleString(),
       icon: FlaskConical,
       color: '#8b5cf6',
     },
     {
       title: 'VQC REJECTION',
-      value: analysisKpis.vqcRejection,
-      change: '+7%',
+      value: analysisData.kpis.vqc_rejection.toLocaleString(),
       icon: CheckCircle,
       color: '#10b981',
     },
     {
       title: 'FT REJECTION',
-      value: analysisKpis.ftRejection,
-      change: '-1%',
+      value: analysisData.kpis.ft_rejection.toLocaleString(),
       icon: Clock,
       color: '#06b6d4',
     },
     {
       title: 'CS REJECTION',
-      value: analysisKpis.csRejection,
-      change: '+4%',
+      value: analysisData.kpis.cs_rejection.toLocaleString(),
       icon: Archive,
       color: '#3b82f6',
     },
@@ -85,7 +93,7 @@ const Analysis: React.FC = () => {
             <KPICard
               title={card.title}
               value={card.value}
-              change={card.change}
+              change=""
               icon={card.icon}
               color={card.color}
               onClick={() => {}}
@@ -100,7 +108,10 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <RejectionStatusCharts />
+        <RejectionStatusCharts 
+          acceptedVsRejected={analysisData.acceptedVsRejected}
+          rejectionBreakdown={analysisData.rejectionBreakdown}
+        />
       </motion.div>
 
       <motion.div
@@ -109,7 +120,7 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        <RejectionTrendChart />
+        <RejectionTrendChart data={analysisData.rejectionTrend} />
       </motion.div>
       
       <motion.div
@@ -118,7 +129,11 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
       >
-        <TopRejectionsCharts />
+        <TopRejectionsCharts 
+          topVqcRejections={analysisData.topVqcRejections}
+          topFtRejections={analysisData.topFtRejections}
+          topCsRejections={analysisData.topCsRejections}
+        />
       </motion.div>
 
       <motion.div
@@ -126,7 +141,10 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
       >
-        <VendorRejectionCharts />
+        <VendorRejectionCharts 
+          deTechData={analysisData.deTechVendorRejections}
+          ihcData={analysisData.ihcVendorRejections}
+        />
       </motion.div>
     </div>
   );

@@ -20,6 +20,37 @@ export interface ChartData {
   count: number;
 }
 
+export interface AnalysisKPIs {
+  total_rejected: number;
+  de_tech_rejection: number;
+  ihc_rejection: number;
+  vqc_rejection: number;
+  ft_rejection: number;
+  cs_rejection: number;
+}
+
+export interface AnalysisChartData {
+  name: string;
+  value: number;
+}
+
+export interface AnalysisTrendData {
+  month: string;
+  rejected: number;
+}
+
+export interface AnalysisData {
+  kpis: AnalysisKPIs;
+  acceptedVsRejected: AnalysisChartData[];
+  rejectionBreakdown: AnalysisChartData[];
+  rejectionTrend: AnalysisTrendData[];
+  topVqcRejections: AnalysisChartData[];
+  topFtRejections: AnalysisChartData[];
+  topCsRejections: AnalysisChartData[];
+  deTechVendorRejections: AnalysisChartData[];
+  ihcVendorRejections: AnalysisChartData[];
+}
+
 interface DashboardContextType {
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
@@ -29,6 +60,7 @@ interface DashboardContextType {
   kpis: KPI | null;
   vqcWipChart: ChartData[];
   ftWipChart: ChartData[];
+  analysisData: AnalysisData | null;
   skus: string[];
   sizes: string[];
   loading: boolean;
@@ -60,6 +92,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [kpis, setKpis] = useState<KPI | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
   const [ftWipChart, setFtWipChart] = useState<ChartData[]>([]);
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [skus, setSkus] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -94,20 +127,24 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     const queryString = params.toString();
 
     try {
-      const [kpiResponse, chartResponse] = await Promise.all([
+      const [kpiResponse, chartResponse, analysisResponse] = await Promise.all([
         fetch(`${BACKEND_URL}/kpis?${queryString}`),
         fetch(`${BACKEND_URL}/charts?${queryString}`),
+        fetch(`${BACKEND_URL}/analysis?${queryString}`),
       ]);
 
       if (!kpiResponse.ok) throw new Error(`HTTP error! status: ${kpiResponse.status} for KPIs`);
       if (!chartResponse.ok) throw new Error(`HTTP error! status: ${chartResponse.status} for Charts`);
+      if (!analysisResponse.ok) throw new Error(`HTTP error! status: ${analysisResponse.status} for Analysis`);
 
       const kpiData = await kpiResponse.json();
       const chartData = await chartResponse.json();
+      const analysisData = await analysisResponse.json();
 
       setKpis(kpiData);
       setVqcWipChart(chartData.vqc_wip_sku_wise);
       setFtWipChart(chartData.ft_wip_sku_wise);
+      setAnalysisData(analysisData);
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
       setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
@@ -156,6 +193,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         kpis,
         vqcWipChart,
         ftWipChart,
+        analysisData,
         skus,
         sizes,
         loading,
