@@ -165,8 +165,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       const skusData = await skusResponse.json();
       const sizesData = await sizesResponse.json();
 
-      setSkus(['all', ...skusData]);
-      setSizes(['all', ...sizesData]);
+      setSkus(['all', ...skusData.filter(s => s)]);
+      setSizes(['all', ...sizesData.filter(s => s)]);
     } catch (err) {
       console.error("Failed to fetch filter options:", err);
       setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
