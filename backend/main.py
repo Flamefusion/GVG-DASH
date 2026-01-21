@@ -109,7 +109,8 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
 
     vqc_wip_conditions = [
         "NOT (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION'))",
-        "(ft_status != 'REJECTED' OR ft_status IS NULL)",
+        "NOT (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION'))",
+        "NOT (UPPER(cs_status) = 'REJECTED')",
         "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
         "vqc_inward_date IS NOT NULL",
         "ft_inward_date IS NULL"
