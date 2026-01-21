@@ -79,8 +79,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     rejection_breakdown_query = f"""
     SELECT vqc_status AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause}
-    WHERE UPPER(vqc_status) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}UPPER(vqc_status) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')
     GROUP BY vqc_status
     """
 
@@ -104,8 +103,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_vqc_rejections_query = f"""
     SELECT vqc_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause}
-    WHERE vqc_reason IS NOT NULL
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}vqc_reason IS NOT NULL
     GROUP BY vqc_reason
     ORDER BY value DESC
     LIMIT 10
@@ -115,8 +113,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_ft_rejections_query = f"""
     SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause}
-    WHERE ft_reason IS NOT NULL
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}ft_reason IS NOT NULL
     GROUP BY ft_reason
     ORDER BY value DESC
     LIMIT 5
@@ -126,8 +123,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_cs_rejections_query = f"""
     SELECT cs_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause}
-    WHERE cs_reason IS NOT NULL
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}cs_reason IS NOT NULL
     GROUP BY cs_reason
     ORDER BY value DESC
     LIMIT 5
