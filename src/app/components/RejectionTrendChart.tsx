@@ -4,8 +4,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useDashboard } from '@/app/contexts/DashboardContext';
 
 interface TrendData {
-  month: string;
-  rejected: number;
+  date: string;
+  quantity: number;
 }
 
 interface RejectionTrendChartProps {
@@ -21,11 +21,11 @@ export const RejectionTrendChart: React.FC<RejectionTrendChartProps> = ({ data }
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="month" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+          <XAxis dataKey="date" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
           <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
           <Tooltip />
           <Legend />
-          <Line type="monotone" dataKey="rejected" stroke="#ef4444" activeDot={{ r: 8 }} />
+          <Line type="monotone" dataKey="quantity" stroke="#ef4444" activeDot={{ r: 8 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

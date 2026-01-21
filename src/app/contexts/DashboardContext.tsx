@@ -35,7 +35,7 @@ export interface AnalysisChartData {
 }
 
 export interface AnalysisTrendData {
-  month: string;
+  day: string;
   rejected: number;
 }
 

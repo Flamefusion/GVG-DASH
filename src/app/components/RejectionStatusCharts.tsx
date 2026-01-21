@@ -13,10 +13,58 @@ interface RejectionStatusChartsProps {
   rejectionBreakdown: ChartData[];
 }
 
+const renderBreakdownLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.4;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  if (percent === 0) return null;
+
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+      {`${value} (${(percent * 100).toFixed(0)}%)`}
+    </text>
+  );
+};
+
+
 export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ acceptedVsRejected, rejectionBreakdown }) => {
   const { darkMode } = useDashboard();
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#3b82f6'];
   const BREAKDOWN_COLORS = ['#f59e0b', '#8b5cf6', '#06b6d4'];
+  const renderAcceptedVsRejectedLabel = ({ cx, cy, midAngle, outerRadius, percent, value, name, innerRadius }) => {
+    const RADIAN = Math.PI / 180;
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 10) * cos;
+    const sy = cy + (outerRadius + 10) * sin;
+    const mx = cx + (outerRadius + 30) * cos;
+    const my = cy + (outerRadius + 30) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+    const labelColor = darkMode ? 'white' : 'black';
+
+    // For the percentage inside
+    const radiusInside = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const xInside = cx + radiusInside * Math.cos(-midAngle * RADIAN);
+    const yInside = cy + radiusInside * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <g>
+        <text x={xInside} y={yInside} fill="white" textAnchor="middle" dominantBaseline="central" fontWeight="bold">
+          {`${(percent * 100).toFixed(0)}%`}
+        </text>
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={labelColor} fill="none" />
+        <circle cx={ex} cy={ey} r={2} fill={labelColor} stroke="none" />
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill={labelColor} dominantBaseline="central">
+          {`${name} (${value})`}
+        </text>
+      </g>
+    );
+  };
+
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -28,11 +76,14 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
               data={acceptedVsRejected}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={80}
+              innerRadius={90}
+              outerRadius={130}
               fill="#8884d8"
               paddingAngle={5}
               dataKey="value"
+              nameKey="name"
+              labelLine={false}
+              label={renderAcceptedVsRejectedLabel}
             >
               {acceptedVsRejected.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -51,10 +102,12 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
               data={rejectionBreakdown}
               cx="50%"
               cy="50%"
-              outerRadius={80}
+              outerRadius={130}
               fill="#8884d8"
               dataKey="value"
-              label
+              nameKey="name"
+              labelLine={false}
+              label={renderBreakdownLabel}
             >
               {rejectionBreakdown.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]} />

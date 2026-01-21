@@ -59,20 +59,25 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
 
     # 2. Accepted Vs Rejected Chart
     accepted_vs_rejected_query = f"""
-    SELECT 
-        CASE
-            WHEN UPPER(cs_status) = 'ACCEPTED' THEN 'Accepted'
-            WHEN UPPER(vqc_status) = 'RT CONVERSION' THEN 'RT CONVERSION'
-            WHEN UPPER(vqc_status) = 'WABI SABI' THEN 'WABI SABI'
-            WHEN UPPER(vqc_status) = 'SCRAP' THEN 'SCRAP'
-            WHEN UPPER(ft_status) = 'FUNCTIONAL REJECTION' THEN 'Functional Rejection'
-            WHEN UPPER(cs_status) = 'REJECTED' THEN 'Charging Station Rejection'
-            ELSE 'Other'
-        END AS status,
-        COUNT(DISTINCT serial_number) AS value
-    FROM {table}
-    {base_where_clause}
-    GROUP BY status
+    WITH data AS (
+        SELECT
+            CASE
+                WHEN UPPER(cs_status) = 'ACCEPTED' THEN 'Accepted'
+                WHEN UPPER(vqc_status) = 'RT CONVERSION' THEN 'RT Conversion'
+                WHEN UPPER(vqc_status) = 'WABI SABI' THEN 'Wabi Sabi'
+                WHEN UPPER(vqc_status) = 'SCRAP' THEN 'Scrap'
+                WHEN UPPER(ft_status) = 'FUNCTIONAL REJECTION' THEN 'Scrap'
+                WHEN UPPER(cs_status) = 'REJECTED' THEN 'Scrap'
+                ELSE 'Other'
+            END AS name,
+            serial_number
+        FROM {table}
+        {base_where_clause}
+    )
+    SELECT name, COUNT(DISTINCT serial_number) AS value
+    FROM data
+    WHERE name != 'Other'
+    GROUP BY name
     """
 
     # 3. Rejection Breakdown chart
@@ -86,17 +91,17 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     # 4. Rejection Trend chart
     rejection_trend_query = f"""
     SELECT
-        FORMAT_DATE('%Y-%m', vqc_inward_date) AS month,
+        FORMAT_DATE('%Y-%m-%d', vqc_inward_date) AS day,
         COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') THEN serial_number
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') THEN serial_number
-            WHEN UPPER(cs_status) = 'REJECTED' THEN serial_number
+            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
+            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
+            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
             ELSE NULL
         END) AS rejected
     FROM {table}
-    {base_where_clause}
-    GROUP BY month
-    ORDER BY month
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}vqc_inward_date IS NOT NULL
+    GROUP BY day
+    ORDER BY day
     """
 
     # 5. Top 10 VQC Rejection chart
