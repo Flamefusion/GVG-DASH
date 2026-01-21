@@ -197,11 +197,11 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
         """,
         'moved_to_inventory': "cs_status = 'ACCEPTED'",
         'work_in_progress': """
-            serial_number IS NOT NULL AND
-            NOT ((UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION')) OR
-                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION')) OR
-                 (UPPER(cs_status) = 'REJECTED')) AND
-            NOT (cs_status = 'ACCEPTED')
+            (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
+            (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
+            (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
+            (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
+            serial_number IS NOT NULL
         """
     }
 
