@@ -108,8 +108,9 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
         return f"WHERE {' AND '.join(additional_conditions)}"
 
     vqc_wip_conditions = [
-        "NOT (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION'))",
-        "(ft_status != 'REJECTED' OR ft_status IS NULL)",
+        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
+        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
+        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
         "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
         "vqc_inward_date IS NOT NULL",
         "ft_inward_date IS NULL"
@@ -125,9 +126,10 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     """
 
     ft_wip_conditions = [
-        "NOT (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION'))",
-        "NOT (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION'))",
-        "NOT (UPPER(cs_status) = 'REJECTED')",
+        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
+        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
+        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
+        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
         "vqc_inward_date IS NOT NULL",
         "ft_inward_date IS NOT NULL"
     ]
