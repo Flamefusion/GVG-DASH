@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   Package,
@@ -15,11 +15,41 @@ import { DataTableModal } from '@/app/components/DataTableModal';
 import { DashboardFilters } from '@/app/components/DashboardFilters';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
+
 export const Home: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [selectedKpi, setSelectedKpi] = useState('');
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const { kpis, loading, error, darkMode } = useDashboard();
+
+  useEffect(() => {
+    const fetchLastUpdated = async () => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/last-updated`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.last_updated_at) {
+                const date = new Date(data.last_updated_at);
+                const formattedDate = date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                setLastUpdatedAt(formattedDate);
+            }
+        } catch (error) {
+            console.error('Failed to fetch last updated time:', error);
+        }
+    };
+
+    fetchLastUpdated();
+  }, []);
 
   const handleKPIClick = (title: string, kpiKey: string) => {
     setModalTitle(title);
@@ -144,6 +174,11 @@ export const Home: React.FC = () => {
         <p className={`text-center text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           Quality Control Monitoring & Analytics
         </p>
+        {lastUpdatedAt && (
+            <p className={`text-center text-sm mt-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Last data sync: {lastUpdatedAt}
+            </p>
+        )}
       </motion.div>
 
       <DashboardFilters />

@@ -181,6 +181,20 @@ async def get_sizes():
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for sizes: {e}")
 
 
+@app.get("/last-updated")
+async def get_last_updated():
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    query = f"SELECT MAX(last_updated_at) as last_updated FROM {TABLE}"
+    try:
+        query_job = client.query(query)
+        results = list(query_job.result())
+        last_updated = results[0]['last_updated'] if results and results[0]['last_updated'] else None
+        return {"last_updated_at": last_updated}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for last updated time: {e}")
+
+
 @app.get("/kpi-data/{kpi_name}")
 async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
     if not client:
