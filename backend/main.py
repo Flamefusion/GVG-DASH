@@ -67,9 +67,9 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
             COUNT(DISTINCT CASE WHEN UPPER(ft_status) = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
             
             COUNT(DISTINCT CASE 
-                WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
-                WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
-                WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
+                WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') THEN serial_number
+                WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') THEN serial_number
+                WHEN UPPER(cs_status) = 'REJECTED' THEN serial_number
                 ELSE NULL
             END) AS total_rejected,
 
@@ -108,7 +108,7 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
         return f"WHERE {' AND '.join(additional_conditions)}"
 
     vqc_wip_conditions = [
-        "(vqc_status != 'REJECTED' OR vqc_status IS NULL)",
+        "NOT (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION'))",
         "(ft_status != 'REJECTED' OR ft_status IS NULL)",
         "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
         "vqc_inward_date IS NOT NULL",
@@ -125,9 +125,9 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     """
 
     ft_wip_conditions = [
-        "(vqc_status != 'REJECTED' OR vqc_status IS NULL)",
-        "(ft_status != 'REJECTED' OR ft_status IS NULL)",
-        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
+        "NOT (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION'))",
+        "NOT (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION'))",
+        "NOT (UPPER(cs_status) = 'REJECTED')",
         "vqc_inward_date IS NOT NULL",
         "ft_inward_date IS NOT NULL"
     ]
@@ -196,9 +196,9 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
         'moved_to_inventory': "cs_status = 'ACCEPTED'",
         'work_in_progress': """
             serial_number IS NOT NULL AND
-            NOT ((UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
-                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
-                 (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)) AND
+            NOT ((UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION')) OR
+                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION')) OR
+                 (UPPER(cs_status) = 'REJECTED')) AND
             NOT (cs_status = 'ACCEPTED')
         """
     }

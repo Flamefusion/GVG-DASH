@@ -89,9 +89,9 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     SELECT
         FORMAT_DATE('%Y-%m', vqc_inward_date) AS month,
         COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
+            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') THEN serial_number
+            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') THEN serial_number
+            WHEN UPPER(cs_status) = 'REJECTED' THEN serial_number
             ELSE NULL
         END) AS rejected
     FROM {table}
