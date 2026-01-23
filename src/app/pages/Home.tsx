@@ -136,19 +136,6 @@ export const Home: React.FC = () => {
         className="mb-8"
       >
         <div className="flex items-center justify-center gap-4 mb-2">
-          <motion.div
-            animate={{
-              rotate: [0, 10, -10, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
-          >
-            <Sparkles size={40} className="text-yellow-400" />
-          </motion.div>
           <h1
             className="text-6xl font-extrabold text-center bg-clip-text text-transparent"
             style={{
@@ -157,19 +144,6 @@ export const Home: React.FC = () => {
           >
             FQC DASHBOARD
           </h1>
-          <motion.div
-            animate={{
-              rotate: [0, -10, 10, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
-          >
-            <Sparkles size={40} className="text-pink-400" />
-          </motion.div>
         </div>
         <p className={`text-center text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           Quality Control Monitoring & Analytics
