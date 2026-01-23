@@ -33,7 +33,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
   const { darkMode } = useDashboard();
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#3b82f6'];
   const BREAKDOWN_COLORS = ['#f59e0b', '#8b5cf6', '#06b6d4'];
-  const renderAcceptedVsRejectedLabel = ({ cx, cy, midAngle, outerRadius, percent, value, name, innerRadius }) => {
+  const renderAcceptedVsRejectedLabel = ({ cx, cy, midAngle, outerRadius, percent, value, name, innerRadius, fill }) => {
     const RADIAN = Math.PI / 180;
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
@@ -44,7 +44,6 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
     const ex = mx + (cos >= 0 ? 1 : -1) * 22;
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
-    const labelColor = darkMode ? 'white' : 'black';
 
     // For the percentage inside
     const radiusInside = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -56,9 +55,9 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
         <text x={xInside} y={yInside} fill="white" textAnchor="middle" dominantBaseline="central" fontWeight="bold">
           {`${(percent * 100).toFixed(0)}%`}
         </text>
-        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={labelColor} fill="none" />
-        <circle cx={ex} cy={ey} r={2} fill={labelColor} stroke="none" />
-        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill={labelColor} dominantBaseline="central">
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+        <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill={fill} dominantBaseline="central">
           {`${name} (${value})`}
         </text>
       </g>
@@ -90,7 +89,6 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
               ))}
             </Pie>
             <Tooltip />
-            <Legend />
           </PieChart>
         </ResponsiveContainer>
       </div>

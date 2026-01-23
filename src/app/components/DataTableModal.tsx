@@ -93,9 +93,10 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
     if (filters.dateRange.to) params.append('end_date', formatDate(filters.dateRange.to));
     if (filters.size && filters.size !== 'all') params.append('size', filters.size);
     if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
+    params.append('download', 'true');
 
     // Fetch all data for CSV export
-    const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?limit=10000&${params.toString()}`);
+    const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?${params.toString()}`);
     const result = await response.json();
     const allData = result.data;
     

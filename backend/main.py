@@ -196,7 +196,7 @@ async def get_last_updated():
 
 
 @app.get("/kpi-data/{kpi_name}")
-async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, download: bool = False):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -232,29 +232,41 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     
     offset = (page - 1) * limit
 
-    count_query = f"SELECT COUNT(DISTINCT serial_number) as total FROM {TABLE} {full_where_clause}"
-    
-    data_query = f"""
-        SELECT *
-        FROM {TABLE}
-        {full_where_clause}
-        ORDER BY vqc_inward_date DESC
-        LIMIT {limit} OFFSET {offset}
-    """
+    if download:
+        data_query = f"""
+            SELECT *
+            FROM {TABLE}
+            {full_where_clause}
+            ORDER BY vqc_inward_date DESC
+        """
+    else:
+        data_query = f"""
+            SELECT *
+            FROM {TABLE}
+            {full_where_clause}
+            ORDER BY vqc_inward_date DESC
+            LIMIT {limit} OFFSET {offset}
+        """
 
     try:
-        count_job = client.query(count_query)
-        total_rows = list(count_job.result())[0]['total']
-        total_pages = (total_rows + limit - 1) // limit
+        if download:
+            data_job = client.query(data_query)
+            data = [dict(row) for row in data_job.result()]
+            return {"data": data}
+        else:
+            count_query = f"SELECT COUNT(DISTINCT serial_number) as total FROM {TABLE} {full_where_clause}"
+            count_job = client.query(count_query)
+            total_rows = list(count_job.result())[0]['total']
+            total_pages = (total_rows + limit - 1) // limit
 
-        data_job = client.query(data_query)
-        data = [dict(row) for row in data_job.result()]
+            data_job = client.query(data_query)
+            data = [dict(row) for row in data_job.result()]
 
-        return {
-            "data": data,
-            "total_pages": total_pages,
-            "current_page": page,
-        }
+            return {
+                "data": data,
+                "total_pages": total_pages,
+                "current_page": page,
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPI data: {e}")
 
