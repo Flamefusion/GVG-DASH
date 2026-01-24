@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar as CalendarIcon, Filter, Search } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
@@ -6,32 +6,48 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/popover';
 import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
-import { reportVendors, reportStages, reportTypes } from '@/app/mockData';
 
 interface ReportFiltersProps {
   onFilterChange: (filters: {
     dateRange: { from: Date | null; to: Date | null };
     vendor: string;
     stage: string;
-    reportType: string;
   }) => void;
 }
+
+const reportStages = ['VQC', 'FT'];
 
 export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) => {
   const { darkMode } = useDashboard();
   const [dateRange, setDateRange] = React.useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
   const [vendor, setVendor] = React.useState('all');
-  const [stage, setStage] = React.useState('VQC'); // Default to VQC as per requirement
-  const [reportType, setReportType] = React.useState('Daily');
+  const [stage, setStage] = React.useState('VQC');
+  const [vendors, setVendors] = useState<string[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      setLoadingVendors(true);
+      try {
+        const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/vendors`);
+        if (response.ok) {
+          const data = await response.json();
+          setVendors(data);
+        }
+      } catch (error) {
+        console.error('Error fetching vendors:', error);
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+    fetchVendors();
+  }, []);
 
   const handleApply = () => {
-    onFilterChange({ dateRange, vendor, stage, reportType });
+    onFilterChange({ dateRange, vendor, stage });
   };
 
-  // Auto-apply filters when stage changes to handle the "FT disables Vendor" logic visually or logic-wise if needed immediately
-  // But user has "Apply Filters" button.
-  
-  // Requirement: "vendor filter should be disabled if i select stage FT"
   const isVendorDisabled = stage === 'FT';
 
   return (
@@ -98,16 +114,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
         </SelectTrigger>
         <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
           <SelectItem value="all">All Vendors</SelectItem>
-          {reportVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      <Select value={reportType} onValueChange={setReportType}>
-        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
-          <SelectValue placeholder="Report Type" />
-        </SelectTrigger>
-        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
-          {reportTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
         </SelectContent>
       </Select>
       

@@ -40,8 +40,7 @@ const Report: React.FC = () => {
   const [filters, setFilters] = useState({
     dateRange: { from: null as Date | null, to: null as Date | null },
     vendor: 'all',
-    stage: 'VQC',
-    reportType: 'Daily'
+    stage: 'VQC'
   });
   const [data, setData] = useState<ReportData>({
     kpis: { output: 0, accepted: 0, rejected: 0 },
@@ -72,9 +71,7 @@ const Report: React.FC = () => {
   };
 
   useEffect(() => {
-    // Fetch data when filters change (if date is selected or defaults)
-    // We can fetch initially without dates (returns all or empty?)
-    // The backend handles optional dates.
+    // Fetch data when filters change
     fetchData();
   }, [filters]);
 
@@ -136,7 +133,7 @@ const Report: React.FC = () => {
     rejectionCategories.forEach(cat => {
       const items = data.rejections[cat.key] || [];
       if (items.length > 0) {
-        content += `*${cat.title}S :*\n`; // Added 'S' to match example "REJECTIONS"
+        content += `*${cat.title}S :*\n`; 
         items.forEach(item => {
           content += `${item.name} - ${item.value}\n`;
         });

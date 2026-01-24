@@ -200,6 +200,18 @@ async def get_sizes():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for sizes: {e}")
 
+@app.get("/vendors")
+async def get_vendors():
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    query = f"SELECT DISTINCT vendor FROM {TABLE} WHERE vendor IS NOT NULL ORDER BY vendor"
+    try:
+        query_job = client.query(query)
+        results = [row['vendor'] for row in query_job.result()]
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for vendors: {e}")
+
 
 @app.get("/last-updated")
 async def get_last_updated():
