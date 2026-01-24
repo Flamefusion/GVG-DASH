@@ -11,7 +11,18 @@ SELECT
   vqc_rejection,
   ft_rejection,
   cs_rejection,
-  -- Now we can safely do the math
-  (vqc_rejection + ft_rejection + cs_rejection) AS TOTAL_REJECTION
+  (vqc_rejection + ft_rejection + cs_rejection) AS TOTAL_REJECTION,
+  vqc_output,
+  vqc_accepted,
+  vqc_rejected_new,
+  vqc_output_3de,
+  vqc_output_ihc,
+  vqc_output_makenica,
+  vqc_accepted_3de,
+  vqc_accepted_ihc,
+  vqc_accepted_makenica,
+  ft_output,
+  ft_accepted,
+  ft_rejected_new
 FROM
   `production-dashboard-482014.dashboard_data.ring_status_mv`;

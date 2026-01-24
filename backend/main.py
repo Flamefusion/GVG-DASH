@@ -1,15 +1,18 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 from pydantic_settings import BaseSettings
 from typing import Optional
 from datetime import date
+from analysis import get_analysis_data, build_where_clause, get_report_data
 
 class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
     BIGQUERY_DATASET_ID: str = 'dashboard_data'
     BIGQUERY_TABLE_ID: str = 'master_station_data'
+    RING_STATUS_TABLE_ID: str = 'ring_status'
+    REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
 
 settings = Settings()
 
@@ -28,13 +31,15 @@ app.add_middleware(
 try:
     client = bigquery.Client(project=settings.BIGQUERY_PROJECT_ID)
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
+    RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'ring_status')}`"
+    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'rejection_analysis')}`"
+
 except Exception as e:
     print(f"Error initializing BigQuery client: {e}")
     client = None
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
-
-
-from analysis import get_analysis_data, build_where_clause
+    RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.ring_status`"
+    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.rejection_analysis`"
 
 @app.get("/")
 def read_root():
@@ -49,6 +54,21 @@ async def get_analysis(start_date: Optional[date] = None, end_date: Optional[dat
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
+
+@app.get("/report-data")
+async def get_report(
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None, 
+    stage: str = Query('VQC', description="Stage: VQC or FT"),
+    vendor: str = Query('all', description="Vendor name")
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    try:
+        data = get_report_data(client, RING_STATUS_TABLE, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
 
 @app.get("/kpis")
 async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
@@ -274,4 +294,3 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-

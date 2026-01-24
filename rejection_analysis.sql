@@ -6,6 +6,7 @@ OPTIONS (
 AS
 SELECT
   vqc_inward_date AS date,
+  vendor,
   vqc_reason,
   CASE
     WHEN vqc_reason IN ('BLACK GLUE', 'ULTRAHUMAN TEXT SMUDGED', 'WHITE PATCH ON BATTERY', 'WHITE PATCH ON PCB', 'WHITE PATCH ON BLACK TAPE', 'WRONG RX COIL') THEN 'ASSEMBLY'
@@ -22,4 +23,4 @@ WHERE
   vqc_inward_date IS NOT NULL
   AND vqc_reason IS NOT NULL
 GROUP BY
-  1, 2, 3
+  1, 2, 3, 4

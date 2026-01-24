@@ -175,3 +175,99 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         "deTechVendorRejections": execute_query(de_tech_vendor_rejections_query),
         "ihcVendorRejections": execute_query(ihc_vendor_rejections_query),
     }
+
+def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
+    
+    where_clause = ""
+    conditions = []
+    if start_date and end_date:
+        conditions.append(f"date BETWEEN '{start_date}' AND '{end_date}'")
+    
+    if conditions:
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+    # Defaults
+    output_col = "vqc_output"
+    accepted_col = "vqc_accepted"
+    rejected_col = "vqc_rejected_new" 
+    
+    if stage == 'VQC':
+        if vendor == '3DE TECH':
+            output_col = "vqc_output_3de"
+            accepted_col = "vqc_accepted_3de"
+            rejected_col = "`3DE_TECH_REJECTION`"
+        elif vendor == 'IHC':
+            output_col = "vqc_output_ihc"
+            accepted_col = "vqc_accepted_ihc"
+            rejected_col = "IHC_REJECTION"
+        elif vendor == 'MAKENICA':
+            output_col = "vqc_output_makenica"
+            accepted_col = "vqc_accepted_makenica"
+            rejected_col = "MAKENICA_REJECTION"
+        else: # All vendors
+            output_col = "vqc_output"
+            accepted_col = "vqc_accepted"
+            rejected_col = "vqc_rejected_new"
+
+    elif stage == 'FT':
+        output_col = "ft_output"
+        accepted_col = "ft_accepted"
+        rejected_col = "ft_rejected_new"
+        
+    kpi_query = f"""
+        SELECT 
+            SUM({output_col}) as output,
+            SUM({accepted_col}) as accepted,
+            SUM({rejected_col}) as rejected
+        FROM {ring_status_table}
+        {where_clause}
+    """
+    
+    rejection_where = where_clause
+    if stage == 'VQC' and vendor and vendor.lower() != 'all':
+        if rejection_where:
+            rejection_where += f" AND vendor = '{vendor}'"
+        else:
+            rejection_where = f"WHERE vendor = '{vendor}'"
+            
+    rejection_query = f"""
+        SELECT 
+            rejection_category,
+            vqc_reason as reason,
+            SUM(count) as value
+        FROM {rejection_analysis_table}
+        {rejection_where}
+        GROUP BY 1, 2
+        ORDER BY 1, 3 DESC
+    """
+    
+    kpis = {}
+    try:
+        job = client.query(kpi_query)
+        res = list(job.result())
+        if res:
+            kpis = dict(res[0])
+            # Handle nulls
+            kpis = {k: (v if v is not None else 0) for k, v in kpis.items()}
+    except Exception as e:
+        print(f"KPI Query Error: {e}")
+        kpis = {"output": 0, "accepted": 0, "rejected": 0}
+        
+    rejections = []
+    try:
+        job = client.query(rejection_query)
+        rejections = [dict(row) for row in job.result()]
+    except Exception as e:
+        print(f"Rejection Query Error: {e}")
+
+    grouped_rejections = {}
+    for r in rejections:
+        cat = r['rejection_category']
+        if cat not in grouped_rejections:
+            grouped_rejections[cat] = []
+        grouped_rejections[cat].append({"name": r['reason'], "value": r['value']})
+        
+    return {
+        "kpis": kpis,
+        "rejections": grouped_rejections
+    }
