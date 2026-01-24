@@ -18,6 +18,7 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 import { Button } from '@/app/components/ui/button';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { ScrollArea } from '@/app/components/ui/scroll-area';
 
 interface RejectionDetail {
   name: string;
@@ -71,7 +72,6 @@ const Report: React.FC = () => {
   };
 
   useEffect(() => {
-    // Fetch data when filters change
     fetchData();
   }, [filters]);
 
@@ -110,11 +110,11 @@ const Report: React.FC = () => {
   ];
 
   const rejectionCategories = [
-    { key: 'ASSEMBLY', title: 'ASSEMBLY REJECTION', icon: Layers, color: '#f59e0b' },
-    { key: 'CASTING', title: 'CASTING REJECTION', icon: Disc, color: '#ec4899' },
-    { key: 'FUNCTIONAL', title: 'FUNCTION REJECTION', icon: Activity, color: '#ef4444' },
-    { key: 'SHELL', title: 'SHELL REJECTION', icon: AlertTriangle, color: '#6366f1' },
-    { key: 'POLISHING', title: 'POLISHING REJECTION', icon: Sparkles, color: '#14b8a6' },
+    { key: 'ASSEMBLY', title: 'ASSEMBLY', icon: Layers, color: '#f59e0b' },
+    { key: 'CASTING', title: 'CASTING', icon: Disc, color: '#ec4899' },
+    { key: 'FUNCTIONAL', title: 'FUNCTIONAL', icon: Activity, color: '#ef4444' },
+    { key: 'SHELL', title: 'SHELL', icon: AlertTriangle, color: '#6366f1' },
+    { key: 'POLISHING', title: 'POLISHING', icon: Sparkles, color: '#14b8a6' },
   ];
 
   const handleExport = () => {
@@ -133,7 +133,7 @@ const Report: React.FC = () => {
     rejectionCategories.forEach(cat => {
       const items = data.rejections[cat.key] || [];
       if (items.length > 0) {
-        content += `*${cat.title}S :*\n`; 
+        content += `*${cat.title} REJECTIONS :*\n`;
         items.forEach(item => {
           content += `${item.name} - ${item.value}\n`;
         });
@@ -167,7 +167,7 @@ const Report: React.FC = () => {
 
       <ReportFilters onFilterChange={handleFilterChange} />
 
-      {/* Main KPIs */}
+      {/* Main KPIs - Compact */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         {mainKpis.map((card, index) => (
           <motion.div
@@ -175,6 +175,7 @@ const Report: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
+            className="h-32" 
           >
             <KPICard
               title={card.title}
@@ -188,7 +189,7 @@ const Report: React.FC = () => {
         ))}
       </div>
 
-      {/* Rejection Category KPIs */}
+      {/* Rejection Category KPIs - Detailed List */}
       <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Rejection Analysis</h2>
       <div className="grid grid-cols-5 gap-4 mb-8">
         {rejectionCategories.map((cat, index) => {
@@ -202,21 +203,36 @@ const Report: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + (index * 0.1) }}
             >
-              <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+              <Card className={`h-[400px] flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}> 
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className={`text-xs font-medium ${darkMode ? 'text-gray-200' : 'text-gray-500'}`}>
+                  <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
                     {cat.title}
                   </CardTitle>
-                  <cat.icon className="h-4 w-4 text-muted-foreground" style={{ color: cat.color }} />
+                  <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{total}</div>
-                  {/* Optional: Show top reason? */}
-                  {items.length > 0 && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Top: {items[0].name} ({items[0].value})
+                <CardContent className="flex-1 flex flex-col min-h-0">
+                  <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {total}
+                  </div>
+                  <ScrollArea className="flex-1 pr-4">
+                    <div className="space-y-3">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
+                          <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+                            {item.name}
+                          </span>
+                          <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
+                            {item.value}
+                          </span>
+                        </div>
+                      ))}
+                      {items.length === 0 && (
+                        <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          No rejections recorded
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </motion.div>
