@@ -1,18 +1,17 @@
-CREATE MATERIALIZED VIEW `production-dashboard-482014.dashboard_data.ring_status`
-OPTIONS (
-  enable_refresh = true,
-  refresh_interval_minutes = 30
-)
-AS
+CREATE VIEW `production-dashboard-482014.dashboard_data.ring_status` AS
 SELECT
-  vqc_inward_date AS date,
-  COUNTIF(cs_status = 'ACCEPTED') AS ACCEPTED,
-  COUNTIF(vqc_status = 'RT CONVERSION' OR ft_status = 'SHELL RELATED') AS RT_CONVERSION,
-  COUNTIF(vqc_status = 'WABI SABI' OR ft_status = 'WABI SABI') AS WABI_SABI,
-  COUNTIF(vqc_status = 'SCRAP' OR ft_status = 'Functional Rejection' OR cs_status = 'REJECTED') AS SCRAP
+  date,
+  ACCEPTED,
+  RT_CONVERSION,
+  WABI_SABI,
+  SCRAP,
+  tech_3de_rejection_raw AS `3DE_TECH_REJECTION`,
+  ihc_rejection_raw AS IHC_REJECTION,
+  makenica_rejection_raw AS MAKENICA_REJECTION,
+  vqc_rejection,
+  ft_rejection,
+  cs_rejection,
+  -- Now we can safely do the math
+  (vqc_rejection + ft_rejection + cs_rejection) AS TOTAL_REJECTION
 FROM
-  `production-dashboard-482014.dashboard_data.master_station_data`
-WHERE
-  vqc_inward_date IS NOT NULL
-GROUP BY
-  vqc_inward_date;
+  `production-dashboard-482014.dashboard_data.ring_status_mv`;
