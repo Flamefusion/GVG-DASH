@@ -31,9 +31,9 @@ SELECT
       ft_status IN ('REJECTED', 'SCRAP', 'SHELL RELATED ', 'WABI SABI', 'FUNCTIONAL REJECTION') OR 
       cs_status = 'REJECTED'
   ) AS scrap,
-  COUNTIF(vendor = '3DE TECH' AND (vqc_status = 'SCRAP' OR ft_status = 'Functional Rejection' OR cs_status = 'REJECTED')) AS tech_3de_rejection_raw,
-  COUNTIF(vendor = 'IHC' AND (vqc_status = 'SCRAP' OR ft_status = 'Functional Rejection' OR cs_status = 'REJECTED')) AS ihc_rejection_raw,
-  COUNTIF(vendor = 'MAKENICA' AND (vqc_status = 'SCRAP' OR ft_status = 'Functional Rejection' OR cs_status = 'REJECTED')) AS makenica_rejection_raw,
+  COUNTIF(vendor = '3DE TECH' AND vqc_status IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')) AS tech_3de_rejection_raw,
+  COUNTIF(vendor = 'IHC' AND vqc_status IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')) AS ihc_rejection_raw,
+  COUNTIF(vendor = 'MAKENICA' AND vqc_status IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')) AS makenica_rejection_raw,
   COUNTIF(vqc_status IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')) AS vqc_rejection_legacy,
   COUNTIF(ft_reason IS NOT NULL) AS ft_rejection_on_vqc_date,
   COUNTIF(cs_status = 'REJECTED') AS cs_rejection
