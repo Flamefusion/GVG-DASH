@@ -1,11 +1,13 @@
-CREATE MATERIALIZED VIEW `production-dashboard-482014.dashboard_data.ring_status_vqc_mv`
-OPTIONS (
-  enable_refresh = true,
-  refresh_interval_minutes = 30
-)
+CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.ring_status_vqc_mv`
 AS
 SELECT
-  CAST(vqc_inward_date AS DATE) AS date,
+  -- Try parsing multiple formats: YYYY-MM-DD, DD-MM-YYYY, DD-MM-YY
+  COALESCE(
+    SAFE.PARSE_DATE('%Y-%m-%d', CAST(vqc_inward_date AS STRING)),
+    SAFE.PARSE_DATE('%d-%m-%Y', CAST(vqc_inward_date AS STRING)),
+    SAFE.PARSE_DATE('%d-%m-%y', CAST(vqc_inward_date AS STRING)),
+    SAFE_CAST(vqc_inward_date AS DATE)
+  ) AS date,
   -- Total VQC Counts
   COUNT(*) AS vqc_output,
   COUNTIF(vqc_status = 'ACCEPTED') AS vqc_accepted,
