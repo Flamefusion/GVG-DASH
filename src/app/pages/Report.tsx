@@ -203,39 +203,36 @@ const Report: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + (index * 0.1) }}
             >
-              <Card className={`h-[400px] flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}> 
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
-                    {cat.title}
-                  </CardTitle>
-                  <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col min-h-0">
-                  <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {total}
-                  </div>
-                  <ScrollArea className="flex-1 pr-4">
-                    <div className="space-y-3">
-                      {items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
-                          <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-                            {item.name}
-                          </span>
-                          <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
-                      {items.length === 0 && (
-                        <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                          No rejections recorded
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </motion.div>
+                            <Card className={`h-full flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
+                                  {cat.title}
+                                </CardTitle>
+                                <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
+                              </CardHeader>
+                              <CardContent className="flex-1 flex flex-col">
+                                <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {total}
+                                </div>
+                                <div className="space-y-3">
+                                  {items.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
+                                      <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+                                        {item.name}
+                                      </span>
+                                      <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
+                                        {item.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {items.length === 0 && (
+                                    <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      No rejections recorded
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>            </motion.div>
           );
         })}
       </div>
