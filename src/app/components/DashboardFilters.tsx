@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar as CalendarIcon, Filter, Moon, Sun, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, Moon, Sun, Search, Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { useDashboard } from '@/app/contexts/DashboardContext';
@@ -9,10 +9,10 @@ import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
 
 export const DashboardFilters: React.FC = () => {
-  const { filters, setFilters, darkMode, toggleDarkMode, skus, sizes, applyFilters } = useDashboard();
+  const { filters, setFilters, darkMode, toggleDarkMode, skus, sizes, applyFilters, isFullScreen, toggleFullScreen } = useDashboard();
 
   return (
-    <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg ${darkMode ? 'bg-ray-800' : 'bg-white'}`}>
       <div className="flex items-center gap-2">
         <Filter className={darkMode ? 'text-white' : 'text-gray-700'} size={20} />
         <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-700'}`}>Filters:</span>
@@ -80,7 +80,7 @@ export const DashboardFilters: React.FC = () => {
           <SelectValue placeholder="SKU" />
         </SelectTrigger>
         <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
-          {skus.map(s => <SelectItem key={s} value={s} className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>{s === 'all' ? 'All SKUs' : s}</SelectItem>)}
+          {skus.map(s => <SelectItem key={s} value={s} className={darkMode ? 'dark:hover:bg-ray-600 dark:focus:bg-gray-600' : ''}>{s === 'all' ? 'All SKUs' : s}</SelectItem>)}
         </SelectContent>
       </Select>
       
@@ -89,7 +89,7 @@ export const DashboardFilters: React.FC = () => {
         Apply Filters
       </Button>
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
         <Button
           onClick={toggleDarkMode}
           variant="outline"
@@ -97,6 +97,14 @@ export const DashboardFilters: React.FC = () => {
           className="rounded-full"
         >
           {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+        </Button>
+        <Button
+          onClick={toggleFullScreen}
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+        >
+          {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
         </Button>
       </div>
     </div>

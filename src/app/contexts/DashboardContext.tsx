@@ -57,6 +57,8 @@ interface DashboardContextType {
   applyFilters: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
+  isFullScreen: boolean;
+  toggleFullScreen: () => void;
   kpis: KPI | null;
   vqcWipChart: ChartData[];
   ftWipChart: ChartData[];
@@ -84,6 +86,7 @@ const getWeekDateRange = () => {
 
 export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: getWeekDateRange(),
     size: 'all',
@@ -100,6 +103,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const toggleDarkMode = () => {
     setDarkMode((prev) => !prev);
+  };
+
+  const toggleFullScreen = () => {
+    setIsFullScreen((prev) => !prev);
   };
   
   const formatDate = (date: Date | null) => {
@@ -193,6 +200,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         applyFilters,
         darkMode,
         toggleDarkMode,
+        isFullScreen,
+        toggleFullScreen,
         kpis,
         vqcWipChart,
         ftWipChart,

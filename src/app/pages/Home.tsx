@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Package,
@@ -7,7 +7,6 @@ import {
   XCircle,
   Archive,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 import { KPICard } from '@/app/components/KPICard';
 import { ChartSection } from '@/app/components/ChartSection';
@@ -22,34 +21,63 @@ export const Home: React.FC = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [selectedKpi, setSelectedKpi] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
-  const { kpis, loading, error, darkMode } = useDashboard();
+  const { kpis, loading, error, darkMode, isFullScreen, toggleFullScreen } = useDashboard();
+  const fullScreenRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchLastUpdated = async () => {
-        try {
-            const response = await fetch(`${BACKEND_URL}/last-updated`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            if (data.last_updated_at) {
-                const date = new Date(data.last_updated_at);
-                const formattedDate = date.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                });
-                setLastUpdatedAt(formattedDate);
-            }
-        } catch (error) {
-            console.error('Failed to fetch last updated time:', error);
+      try {
+        const response = await fetch(`${BACKEND_URL}/last-updated`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+        const data = await response.json();
+        if (data.last_updated_at) {
+          const date = new Date(data.last_updated_at);
+          const formattedDate = date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          setLastUpdatedAt(formattedDate);
+        }
+      } catch (error) {
+        console.error('Failed to fetch last updated time:', error);
+      }
     };
 
     fetchLastUpdated();
   }, []);
+
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      if (!document.fullscreenElement) {
+        if (isFullScreen) {
+          toggleFullScreen();
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullScreenChange);
+    };
+  }, [isFullScreen, toggleFullScreen]);
+
+  useEffect(() => {
+    if (fullScreenRef.current) {
+      if (isFullScreen) {
+        fullScreenRef.current.requestFullscreen();
+      } else {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+    }
+  }, [isFullScreen]);
 
   const handleKPIClick = (title: string, kpiKey: string) => {
     setModalTitle(title);
@@ -157,33 +185,35 @@ export const Home: React.FC = () => {
 
       <DashboardFilters />
 
-      <div className="grid grid-cols-6 gap-4 mb-8">
-        {kpiCards.map((card, index) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <KPICard
-              title={card.title}
-              value={card.value}
-              change={card.change}
-              icon={card.icon}
-              color={card.color}
-              onClick={() => handleKPIClick(card.title, card.kpiKey)}
-            />
-          </motion.div>
-        ))}
-      </div>
+      <div ref={fullScreenRef} className={isFullScreen ? "bg-gray-900 p-8" : ""}>
+        <div className="grid grid-cols-6 gap-4 mb-8">
+          {kpiCards.map((card, index) => (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <KPICard
+                title={card.title}
+                value={card.value}
+                change={card.change}
+                icon={card.icon}
+                color={card.color}
+                onClick={() => handleKPIClick(card.title, card.kpiKey)}
+              />
+            </motion.div>
+          ))}
+        </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-      >
-        <ChartSection />
-      </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <ChartSection />
+        </motion.div>
+      </div>
 
       {modalOpen && (
         <DataTableModal
