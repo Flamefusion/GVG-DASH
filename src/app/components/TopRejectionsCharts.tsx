@@ -22,37 +22,37 @@ export const TopRejectionsCharts: React.FC<TopRejectionsChartsProps> = ({ topVqc
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Top 10 VQC Rejections</h3>
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
-            <Pie data={topVqcRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" label>
+            <Pie data={topVqcRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
               {topVqcRejections.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
             </Pie>
             <Tooltip />
-            <Legend layout="vertical" align="right" verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+            <Legend layout="vertical" align="right" verticalAlign="top" wrapperStyle={{ fontSize: '10px', maxWidth: '30%' }} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Top 5 FT Rejections</h3>
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
-            <Pie data={topFtRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#82ca9d" label>
+            <Pie data={topFtRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#82ca9d" label>
               {topFtRejections.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
             </Pie>
             <Tooltip />
-            <Legend layout="vertical" align="right" verticalAlign="top" />
+            <Legend layout="vertical" align="right" verticalAlign="top" wrapperStyle={{ fontSize: '10px', maxWidth: '30%' }} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Top 5 CS Rejections</h3>
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
-            <Pie data={topCsRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} fill="#ffc658" label>
+            <Pie data={topCsRejections} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#ffc658" label>
               {topCsRejections.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
             </Pie>
             <Tooltip />
-            <Legend layout="vertical" align="right" verticalAlign="top" />
+            <Legend layout="vertical" align="right" verticalAlign="top" wrapperStyle={{ fontSize: '10px', maxWidth: '30%' }} />
           </PieChart>
         </ResponsiveContainer>
       </div>
