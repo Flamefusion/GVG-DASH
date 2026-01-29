@@ -64,6 +64,21 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
     if (filters.size && filters.size !== 'all') params.append('size', filters.size);
     if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
 
+    if (filters.stage) {
+      params.append('stage', filters.stage);
+      let date_column = 'vqc_inward_date';
+      if (filters.stage === 'FT') {
+        date_column = 'ft_inward_date';
+      } else if (filters.stage === 'CS' || filters.stage === 'RT CS') {
+        date_column = 'cs_comp_date';
+      }
+      params.append('date_column', date_column);
+
+      if (filters.stage === 'RT' || filters.stage === 'RT CS') {
+        params.append('table', 'rt_conversion_data');
+      }
+    }
+
     try {
       const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch data');
@@ -95,16 +110,36 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
     if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
     params.append('download', 'true');
 
+    if (filters.stage) {
+      params.append('stage', filters.stage);
+      let date_column = 'vqc_inward_date';
+      if (filters.stage === 'FT') {
+        date_column = 'ft_inward_date';
+      } else if (filters.stage === 'CS' || filters.stage === 'RT CS') {
+        date_column = 'cs_comp_date';
+      }
+      params.append('date_column', date_column);
+
+      if (filters.stage === 'RT' || filters.stage === 'RT CS') {
+        params.append('table', 'rt_conversion_data');
+      }
+    }
+
     // Fetch all data for CSV export
     const response = await fetch(`${BACKEND_URL}/kpi-data/${kpiKey}?${params.toString()}`);
     const result = await response.json();
     const allData = result.data;
     
+    if (allData.length === 0) {
+      alert("No data available to download.");
+      return;
+    }
+
     const headers = Object.keys(allData[0] || {});
     const csvContent = [
       headers.join(','),
       ...allData.map((row: any) =>
-        headers.map(header => row[header]).join(',')
+        headers.map(header => JSON.stringify(row[header])).join(',')
       ),
     ].join('\n');
 
