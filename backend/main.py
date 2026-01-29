@@ -152,6 +152,11 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPIs: {e}")
 
+def combine_where_clauses(base_clause, additional_conditions):
+    if base_clause:
+        return f"{base_clause} AND {' AND '.join(additional_conditions)}"
+    return f"WHERE {' AND '.join(additional_conditions)}"
+
 @app.get("/charts")
 async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
     if not client:
