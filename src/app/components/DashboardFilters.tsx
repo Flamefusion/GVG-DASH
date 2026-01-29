@@ -83,6 +83,8 @@ export const DashboardFilters: React.FC = () => {
           <SelectItem value="VQC" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>VQC</SelectItem>
           <SelectItem value="FT" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>FT</SelectItem>
           <SelectItem value="CS" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>CS</SelectItem>
+          <SelectItem value="RT" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>RT</SelectItem>
+          <SelectItem value="RT CS" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>RT CS</SelectItem>
         </SelectContent>
       </Select>
 

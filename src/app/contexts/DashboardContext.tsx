@@ -138,10 +138,14 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       let date_column = 'vqc_inward_date';
       if (currentFilters.stage === 'FT') {
         date_column = 'ft_inward_date';
-      } else if (currentFilters.stage === 'CS') {
+      } else if (currentFilters.stage === 'CS' || currentFilters.stage === 'RT CS') {
         date_column = 'cs_comp_date';
       }
       params.append('date_column', date_column);
+
+      if (currentFilters.stage === 'RT' || currentFilters.stage === 'RT CS') {
+        params.append('table', 'rt_conversion_data');
+      }
     }
     const queryString = params.toString();
 
@@ -174,9 +178,13 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const fetchFilterOptions = useCallback(async () => {
     try {
+      const table = (filters.stage === 'RT' || filters.stage === 'RT CS') ? 'rt_conversion_data' : 'master_station_data';
+      const params = new URLSearchParams({ table });
+      const queryString = params.toString();
+
       const [skusResponse, sizesResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/skus`),
-        fetch(`${BACKEND_URL}/sizes`),
+        fetch(`${BACKEND_URL}/skus?${queryString}`),
+        fetch(`${BACKEND_URL}/sizes?${queryString}`),
       ]);
       if (!skusResponse.ok) throw new Error('Failed to fetch SKUs');
       if (!sizesResponse.ok) throw new Error('Failed to fetch sizes');
@@ -190,12 +198,15 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error("Failed to fetch filter options:", err);
       setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, []);
+  }, [filters.stage]);
 
   useEffect(() => {
     fetchFilterOptions();
+  }, [fetchFilterOptions]);
+
+  useEffect(() => {
     fetchData(filters);
-  }, [fetchData, fetchFilterOptions]);
+  }, [fetchData]);
 
   const applyFilters = () => {
     fetchData(filters);
