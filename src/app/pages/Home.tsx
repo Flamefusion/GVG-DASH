@@ -7,12 +7,22 @@ import {
   XCircle,
   Archive,
   Clock,
+  Info, // Added Info icon
 } from 'lucide-react';
 import { KPICard } from '@/app/components/KPICard';
 import { ChartSection } from '@/app/components/ChartSection';
 import { DataTableModal } from '@/app/components/DataTableModal';
 import { DashboardFilters } from '@/app/components/DashboardFilters';
 import { useDashboard } from '@/app/contexts/DashboardContext';
+import { Button } from '@/app/components/ui/button'; // Added Button import
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/app/components/ui/dialog'; // Added Dialog imports
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
 
@@ -164,6 +174,74 @@ export const Home: React.FC = () => {
         className="mb-8"
       >
         <div className="flex items-center justify-center gap-4 mb-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="absolute left-4 top-4">
+                <Info className={darkMode ? 'text-white' : 'text-gray-700'} size={20} />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className={darkMode ? 'dark:bg-gray-800 dark:text-white' : ''}>
+              <DialogHeader>
+                <DialogTitle>How to Use This Dashboard</DialogTitle>
+                <DialogDescription>
+                  This dashboard provides an overview of Quality Control processes.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 text-left">
+                <h3 className="text-lg font-semibold mb-2">1. Understanding Filters:</h3>
+                <p className="mb-2">
+                  The dashboard features a dynamic filtering system. The <strong>'Stage'</strong> filter
+                  is crucial as it dictates which date field is used for filtering and which underlying
+                  data table is queried.
+                </p>
+                <ul className="list-disc list-inside ml-4 mb-4">
+                  <li>
+                    <strong>VQC Stage (Default):</strong> Uses <code>vqc_inward_date</code> for date filtering. Queries
+                    the <code>master_station_data</code> table.
+                  </li>
+                  <li>
+                    <strong>FT Stage:</strong> Uses <code>ft_inward_date</code> for date filtering. Queries
+                    the <code>master_station_data</code> table.
+                  </li>
+                  <li>
+                    <strong>CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering. Queries
+                    the <code>master_station_data</code> table.
+                  </li>
+                  <li>
+                    <strong>RT Stage:</strong> Uses <code>vqc_inward_date</code> for date filtering. Queries
+                    the <code>rt_conversion_data</code> table.
+                  </li>
+                  <li>
+                    <strong>RT CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering. Queries
+                    the <code>rt_conversion_data</code> table.
+                  </li>
+                </ul>
+                <p className="mb-4">
+                  The <strong>'Size'</strong> and <strong>'SKU'</strong> filters also adapt to the selected stage,
+                  fetching their options from the corresponding data table.
+                </p>
+
+                <h3 className="text-lg font-semibold mb-2">2. Dashboard Use Scenarios:</h3>
+                <ul className="list-disc list-inside ml-4">
+                  <li>
+                    <strong>Track WIP:</strong> Monitor Work In Progress across all stages of FQC (VQC, FT, CS, RT).
+                  </li>
+                  <li>
+                    <strong>Download KPI Data:</strong> All KPI cards are interactive. Clicking on a KPI card
+                    allows you to download the underlying data directly, with no row limitations.
+                  </li>
+                  <li>
+                    <strong>Visualize Quality Data:</strong> The Analysis page provides comprehensive
+                    visualizations of overall quality data.
+                  </li>
+                  <li>
+                    <strong>Generate Reports:</strong> The Report page facilitates easy generation of daily,
+                    weekly, and monthly reports.
+                  </li>
+                </ul>
+              </div>
+            </DialogContent>
+          </Dialog>
           <h1
             className="text-6xl font-extrabold text-center bg-clip-text text-transparent"
             style={{
