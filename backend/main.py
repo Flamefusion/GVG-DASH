@@ -46,11 +46,11 @@ def read_root():
     return {"message": "GVG Dashboard Backend is running"}
 
 @app.get("/analysis")
-async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, stage: Optional[str] = None, date_column: str = 'vqc_inward_date'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        analysis_data = get_analysis_data(client, TABLE, start_date, end_date, size, sku)
+        analysis_data = get_analysis_data(client, TABLE, start_date, end_date, size, sku, date_column)
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
@@ -71,11 +71,11 @@ async def get_report(
         raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
 
 @app.get("/kpis")
-async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    where_clause = build_where_clause(start_date, end_date, size, sku)
+    where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
 
     query = f"""
     WITH KpiMetrics AS (
@@ -116,11 +116,11 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPIs: {e}")
 
 @app.get("/charts")
-async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
+async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    base_where_clause = build_where_clause(start_date, end_date, size, sku)
+    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
 
     def combine_where_clauses(base_clause, additional_conditions):
         if base_clause:
@@ -228,7 +228,7 @@ async def get_last_updated():
 
 
 @app.get("/kpi-data/{kpi_name}")
-async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, download: bool = False):
+async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, download: bool = False, date_column: str = 'vqc_inward_date'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -254,7 +254,7 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     if kpi_name not in kpi_conditions:
         raise HTTPException(status_code=404, detail="KPI name not found")
 
-    base_where_clause = build_where_clause(start_date, end_date, size, sku)
+    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
     kpi_where_condition = kpi_conditions[kpi_name]
 
     if base_where_clause:
@@ -269,14 +269,14 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
             SELECT *
             FROM {TABLE}
             {full_where_clause}
-            ORDER BY vqc_inward_date DESC
+            ORDER BY {date_column} DESC
         """
     else:
         data_query = f"""
             SELECT *
             FROM {TABLE}
             {full_where_clause}
-            ORDER BY vqc_inward_date DESC
+            ORDER BY {date_column} DESC
             LIMIT {limit} OFFSET {offset}
         """
 

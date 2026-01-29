@@ -4,6 +4,7 @@ export interface DashboardFilters {
   dateRange: { from: Date | null; to: Date | null };
   size: string;
   sku: string;
+  stage: string;
 }
 
 export interface KPI {
@@ -73,13 +74,10 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
 
-const getWeekDateRange = () => {
+const getMonthDateRange = () => {
   const today = new Date();
-  const first = today.getDate() - today.getDay();
-  const last = first + 6;
-
-  const from = new Date(today.setDate(first));
-  const to = new Date(today.setDate(last));
+  const from = new Date(today.getFullYear(), today.getMonth(), 1);
+  const to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   
   return { from, to };
 };
@@ -88,9 +86,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [darkMode, setDarkMode] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>({
-    dateRange: getWeekDateRange(),
+    dateRange: getMonthDateRange(),
     size: 'all',
     sku: 'all',
+    stage: 'VQC',
   });
   const [kpis, setKpis] = useState<KPI | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
@@ -133,6 +132,16 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
     if (currentFilters.sku && currentFilters.sku !== 'all') {
       params.append('sku', currentFilters.sku);
+    }
+    if (currentFilters.stage) {
+      params.append('stage', currentFilters.stage);
+      let date_column = 'vqc_inward_date';
+      if (currentFilters.stage === 'FT') {
+        date_column = 'ft_inward_date';
+      } else if (currentFilters.stage === 'CS') {
+        date_column = 'cs_comp_date';
+      }
+      params.append('date_column', date_column);
     }
     const queryString = params.toString();
 

@@ -2,10 +2,10 @@ from google.cloud import bigquery
 from typing import Optional
 from datetime import date
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str]) -> str:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str], date_column: str = 'vqc_inward_date') -> str:
     where_conditions = []
     if start_date and end_date:
-        where_conditions.append(f"vqc_inward_date BETWEEN '{start_date}' AND '{end_date}'")
+        where_conditions.append(f"{date_column} BETWEEN '{start_date}' AND '{end_date}'")
     if size and size.lower() != 'all':
         where_conditions.append(f"size = '{size}'")
     if sku and sku.lower() != 'all':
@@ -13,8 +13,8 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
     
     return f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None):
-    base_where_clause = build_where_clause(start_date, end_date, size, sku)
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
+    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
 
     # 1. KPIs
     kpi_query = f"""
@@ -91,7 +91,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     # 4. Rejection Trend chart
     rejection_trend_query = f"""
     SELECT
-        FORMAT_DATE('%Y-%m-%d', vqc_inward_date) AS day,
+        FORMAT_DATE('%Y-%m-%d', {date_column}) AS day,
         COUNT(DISTINCT CASE
             WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
             WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
@@ -99,7 +99,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             ELSE NULL
         END) AS rejected
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}vqc_inward_date IS NOT NULL
+    {base_where_clause + " AND " if base_where_clause else "WHERE "}{date_column} IS NOT NULL
     GROUP BY day
     ORDER BY day
     """

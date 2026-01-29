@@ -73,6 +73,20 @@ export const DashboardFilters: React.FC = () => {
       </Select>
 
       <Select
+        value={filters.stage}
+        onValueChange={(value) => setFilters({ ...filters, stage: value })}
+      >
+        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
+          <SelectValue placeholder="Stage" />
+        </SelectTrigger>
+        <SelectContent className={darkMode ? 'dark:bg-ray-700 dark:text-white' : ''}>
+          <SelectItem value="VQC" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>VQC</SelectItem>
+          <SelectItem value="FT" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>FT</SelectItem>
+          <SelectItem value="CS" className={darkMode ? 'dark:hover:bg-gray-600 dark:focus:bg-gray-600' : ''}>CS</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
         value={filters.sku}
         onValueChange={(value) => setFilters({ ...filters, sku: value })}
       >
