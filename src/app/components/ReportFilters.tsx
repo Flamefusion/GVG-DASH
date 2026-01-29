@@ -7,21 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/pop
 import { Calendar } from '@/app/components/ui/calendar';
 import { format } from 'date-fns';
 
-interface ReportFiltersProps {
-  onFilterChange: (filters: {
-    dateRange: { from: Date | null; to: Date | null };
-    vendor: string;
-    stage: string;
-  }) => void;
-}
+interface ReportFiltersProps {}
 
 const reportStages = ['VQC', 'FT'];
 
-export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) => {
-  const { darkMode } = useDashboard();
-  const [dateRange, setDateRange] = React.useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
-  const [vendor, setVendor] = React.useState('all');
-  const [stage, setStage] = React.useState('VQC');
+export const ReportFilters: React.FC<ReportFiltersProps> = () => {
+  const { darkMode, reportFilters, setReportFilters } = useDashboard();
   const [vendors, setVendors] = useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
@@ -44,11 +35,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
     fetchVendors();
   }, []);
 
-  const handleApply = () => {
-    onFilterChange({ dateRange, vendor, stage });
-  };
-
-  const isVendorDisabled = stage === 'FT';
+  const isVendorDisabled = reportFilters.stage === 'FT';
 
   return (
     <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -62,17 +49,17 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
+              {reportFilters.dateRange.from ? format(reportFilters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
             <Calendar
               mode="single"
-              selected={dateRange.from || undefined}
-              onSelect={(date) => setDateRange({ ...dateRange, from: date || null })}
+              selected={reportFilters.dateRange.from || undefined}
+              onSelect={(date) => setReportFilters({ ...reportFilters, dateRange: { ...reportFilters.dateRange, from: date || null } })}
               initialFocus
             />
           </PopoverContent>
@@ -82,24 +69,24 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
+              {reportFilters.dateRange.to ? format(reportFilters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
             <Calendar
               mode="single"
-              selected={dateRange.to || undefined}
-              onSelect={(date) => setDateRange({ ...dateRange, to: date || null })}
+              selected={reportFilters.dateRange.to || undefined}
+              onSelect={(date) => setReportFilters({ ...reportFilters, dateRange: { ...reportFilters.dateRange, to: date || null } })}
               initialFocus
             />
           </PopoverContent>
         </Popover>
       </div>
 
-      <Select value={stage} onValueChange={setStage}>
+      <Select value={reportFilters.stage} onValueChange={(stage) => setReportFilters({ ...reportFilters, stage })}>
         <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
@@ -108,7 +95,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
         </SelectContent>
       </Select>
 
-      <Select value={vendor} onValueChange={setVendor} disabled={isVendorDisabled}>
+      <Select value={reportFilters.vendor} onValueChange={(vendor) => setReportFilters({ ...reportFilters, vendor })} disabled={isVendorDisabled}>
         <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
           <SelectValue placeholder="Vendor" />
         </SelectTrigger>
@@ -117,11 +104,6 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) 
           {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
         </SelectContent>
       </Select>
-      
-      <Button onClick={handleApply} className="flex items-center gap-2">
-        <Search size={16} />
-        Apply Filters
-      </Button>
     </div>
   );
 };

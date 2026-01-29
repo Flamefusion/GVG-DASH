@@ -37,12 +37,7 @@ interface ReportData {
 }
 
 const Report: React.FC = () => {
-  const { darkMode } = useDashboard();
-  const [filters, setFilters] = useState({
-    dateRange: { from: null as Date | null, to: null as Date | null },
-    vendor: 'all',
-    stage: 'VQC'
-  });
+  const { darkMode, reportFilters } = useDashboard();
   const [data, setData] = useState<ReportData>({
     kpis: { output: 0, accepted: 0, rejected: 0 },
     rejections: {}
@@ -53,10 +48,10 @@ const Report: React.FC = () => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams();
-      if (filters.dateRange.from) queryParams.append('start_date', format(filters.dateRange.from, 'yyyy-MM-dd'));
-      if (filters.dateRange.to) queryParams.append('end_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
-      queryParams.append('stage', filters.stage);
-      queryParams.append('vendor', filters.stage === 'FT' ? 'all' : filters.vendor);
+      if (reportFilters.dateRange.from) queryParams.append('start_date', format(reportFilters.dateRange.from, 'yyyy-MM-dd'));
+      if (reportFilters.dateRange.to) queryParams.append('end_date', format(reportFilters.dateRange.to, 'yyyy-MM-dd'));
+      queryParams.append('stage', reportFilters.stage);
+      queryParams.append('vendor', reportFilters.stage === 'FT' ? 'all' : reportFilters.vendor);
 
       const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
       const response = await fetch(`${apiUrl}/report-data?${queryParams.toString()}`);
@@ -73,11 +68,7 @@ const Report: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
-
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters);
-  };
+  }, [reportFilters]);
 
   const yieldValue = data.kpis.output > 0 ? Math.round((data.kpis.accepted / data.kpis.output) * 100) : 0;
 
@@ -118,16 +109,16 @@ const Report: React.FC = () => {
   ];
 
   const handleExport = () => {
-    const dateStr = filters.dateRange.from 
-      ? format(filters.dateRange.from, 'd-M-yy') + (filters.dateRange.to && filters.dateRange.to !== filters.dateRange.from ? ` to ${format(filters.dateRange.to, 'd-M-yy')}` : '')
+    const dateStr = reportFilters.dateRange.from 
+      ? format(reportFilters.dateRange.from, 'd-M-yy') + (reportFilters.dateRange.to && reportFilters.dateRange.to !== reportFilters.dateRange.from ? ` to ${format(reportFilters.dateRange.to, 'd-M-yy')}` : '')
       : 'ALL TIME';
     
-    const vendorStr = filters.stage === 'FT' ? 'FT' : (filters.vendor === 'all' ? 'ALL VENDORS' : filters.vendor);
+    const vendorStr = reportFilters.stage === 'FT' ? 'FT' : (reportFilters.vendor === 'all' ? 'ALL VENDORS' : reportFilters.vendor);
     
-    let content = `*${filters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
+    let content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
     content += `OUTPUT - ${data.kpis.output}\n`;
-    content += `${filters.stage} ACCEPTED - ${data.kpis.accepted}\n`;
-    content += `${filters.stage} REJECTED - ${data.kpis.rejected}\n`;
+    content += `${reportFilters.stage} ACCEPTED - ${data.kpis.accepted}\n`;
+    content += `${reportFilters.stage} REJECTED - ${data.kpis.rejected}\n`;
     content += `YIELD - ${yieldValue}%\n\n`;
 
     rejectionCategories.forEach(cat => {
@@ -145,7 +136,7 @@ const Report: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${filters.stage}_REPORT_${vendorStr}_${dateStr}.csv`);
+    link.setAttribute('download', `${reportFilters.stage}_REPORT_${vendorStr}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -165,7 +156,7 @@ const Report: React.FC = () => {
         </Button>
       </div>
 
-      <ReportFilters onFilterChange={handleFilterChange} />
+      <ReportFilters />
 
       {/* Main KPIs - Compact */}
       <div className="grid grid-cols-4 gap-4 mb-8">

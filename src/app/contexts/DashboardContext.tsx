@@ -52,9 +52,17 @@ export interface AnalysisData {
   ihcVendorRejections: AnalysisChartData[];
 }
 
+export interface ReportFilters {
+  dateRange: { from: Date | null; to: Date | null };
+  vendor: string;
+  stage: string;
+}
+
 interface DashboardContextType {
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
+  reportFilters: ReportFilters;
+  setReportFilters: (filters: ReportFilters) => void;
   applyFilters: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -89,6 +97,11 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     dateRange: getMonthDateRange(),
     size: 'all',
     sku: 'all',
+    stage: 'VQC',
+  });
+  const [reportFilters, setReportFilters] = useState<ReportFilters>({
+    dateRange: { from: null, to: null },
+    vendor: 'all',
     stage: 'VQC',
   });
   const [kpis, setKpis] = useState<KPI | null>(null);
@@ -217,6 +230,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       value={{
         filters,
         setFilters,
+        reportFilters,
+        setReportFilters,
         applyFilters,
         darkMode,
         toggleDarkMode,
