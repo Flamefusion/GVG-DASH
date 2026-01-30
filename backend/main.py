@@ -110,7 +110,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
             testing_accepted,
             total_rejected,
             moved_to_inventory,
-            work_in_progress
+            (total_inward - total_rejected - moved_to_inventory) AS work_in_progress
         FROM KpiMetrics
         """
     else:
@@ -178,8 +178,8 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     if stage in ['RT', 'RT CS']:
-        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL"])
-        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "cs_status IS NULL"])
+        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL", "vqc_reason != 'SCRAP'"])
+        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "ft_status != 'Rejected'"])
     else:
         vqc_wip_conditions = [
             "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
@@ -327,7 +327,8 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
             'testing_accepted': "ft_status = 'ACCEPTED'",
             'total_rejected': "(vqc_status = 'SCRAP' AND vqc_reason IS NOT NULL) OR (ft_status = 'REJECTED' AND ft_reason IS NOT NULL) OR (cs_status = 'REJECTED')",
             'moved_to_inventory': "cs_status = 'ACCEPTED'",
-            'work_in_progress': "(vqc_inward_date IS NOT NULL AND ft_inward_date IS NULL) OR (ft_inward_date IS NOT NULL AND cs_comp_date IS NULL AND cs_status IS NULL)"
+            'work_in_progress': "serial_number IS NOT NULL AND (vqc_status != 'SCRAP' OR vqc_status IS NULL) AND (ft_status != 'REJECTED' OR ft_status IS NULL) AND (cs_status != 'REJECTED' OR cs_status IS NULL) AND (cs_status != 'ACCEPTED' OR cs_status IS NULL)"
+
         }
     else:
         kpi_conditions = {
