@@ -1,20 +1,29 @@
-from google.cloud import bigquery
+from google.cloud.bigquery import BigQueryClient, ScalarQueryParameter, QueryJobConfig
 from typing import Optional
 from datetime import date
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str], date_column: str = 'vqc_inward_date') -> str:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str], date_column: str = 'vqc_inward_date') -> tuple[str, list[ScalarQueryParameter]]:
     where_conditions = []
-    if start_date and end_date:
-        where_conditions.append(f"{date_column} BETWEEN '{start_date}' AND '{end_date}'")
-    if size and size.lower() != 'all':
-        where_conditions.append(f"size = '{size}'")
-    if sku and sku.lower() != 'all':
-        where_conditions.append(f"sku = '{sku}'")
-    
-    return f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+    query_parameters = []
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
-    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
+    if start_date and end_date:
+        where_conditions.append(f"{date_column} BETWEEN @start_date AND @end_date")
+        query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
+        query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
+
+    if size and size.lower() != 'all':
+        where_conditions.append("size = @size")
+        query_parameters.append(ScalarQueryParameter("size", "STRING", size))
+
+    if sku and sku.lower() != 'all':
+        where_conditions.append("sku = @sku")
+        query_parameters.append(ScalarQueryParameter("sku", "STRING", sku))
+    
+    where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+    return where_clause_str, query_parameters
+
+def get_analysis_data(client: BigQueryClient, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     # 1. KPIs
     kpi_query = f"""
@@ -54,7 +63,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             ELSE NULL
         END) AS cs_rejection
     FROM {table}
-    {base_where_clause}
+    {base_where_clause_str}
     """
 
     # 2. Accepted Vs Rejected Chart
@@ -72,7 +81,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             END AS name,
             serial_number
         FROM {table}
-        {base_where_clause}
+        {base_where_clause_str}
     )
     SELECT name, COUNT(DISTINCT serial_number) AS value
     FROM data
@@ -84,7 +93,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     rejection_breakdown_query = f"""
     SELECT vqc_status AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}UPPER(vqc_status) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}UPPER(vqc_status) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')
     GROUP BY vqc_status
     """
 
@@ -99,7 +108,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             ELSE NULL
         END) AS rejected
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}{date_column} IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}{date_column} IS NOT NULL
     GROUP BY day
     ORDER BY day
     """
@@ -108,7 +117,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_vqc_rejections_query = f"""
     SELECT vqc_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}vqc_reason IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}vqc_reason IS NOT NULL
     GROUP BY vqc_reason
     ORDER BY value DESC
     LIMIT 10
@@ -118,7 +127,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_ft_rejections_query = f"""
     SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}ft_reason IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}ft_reason IS NOT NULL
     GROUP BY ft_reason
     ORDER BY value DESC
     LIMIT 5
@@ -128,7 +137,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     top_cs_rejections_query = f"""
     SELECT cs_reason AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "}cs_reason IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}cs_reason IS NOT NULL
     GROUP BY cs_reason
     ORDER BY value DESC
     LIMIT 5
@@ -138,7 +147,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     de_tech_vendor_rejections_query = f"""
     SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "} vendor = '3DE TECH' AND vqc_reason IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND vqc_reason IS NOT NULL
     GROUP BY vqc_reason
     ORDER BY value DESC
     LIMIT 10
@@ -148,43 +157,48 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     ihc_vendor_rejections_query = f"""
     SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
     FROM {table}
-    {base_where_clause + " AND " if base_where_clause else "WHERE "} vendor = 'IHC' AND vqc_reason IS NOT NULL
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND vqc_reason IS NOT NULL
     GROUP BY vqc_reason
     ORDER BY value DESC
     LIMIT 10
     """
 
-    def execute_query(query):
+    def execute_query(query, params=None):
+        if params is None:
+            params = []
+        job_config = QueryJobConfig(query_parameters=params)
         try:
-            query_job = client.query(query)
+            query_job = client.query(query, job_config=job_config)
             return [dict(row) for row in query_job.result()]
         except Exception as e:
             print(f"Error executing query: {e}")
             return []
 
-    kpis_result = execute_query(kpi_query)
+    kpis_result = execute_query(kpi_query, query_parameters)
     
     return {
         "kpis": kpis_result[0] if kpis_result else {},
-        "acceptedVsRejected": execute_query(accepted_vs_rejected_query),
-        "rejectionBreakdown": execute_query(rejection_breakdown_query),
-        "rejectionTrend": execute_query(rejection_trend_query),
-        "topVqcRejections": execute_query(top_vqc_rejections_query),
-        "topFtRejections": execute_query(top_ft_rejections_query),
-        "topCsRejections": execute_query(top_cs_rejections_query),
-        "deTechVendorRejections": execute_query(de_tech_vendor_rejections_query),
-        "ihcVendorRejections": execute_query(ihc_vendor_rejections_query),
+        "acceptedVsRejected": execute_query(accepted_vs_rejected_query, query_parameters),
+        "rejectionBreakdown": execute_query(rejection_breakdown_query, query_parameters),
+        "rejectionTrend": execute_query(rejection_trend_query, query_parameters),
+        "topVqcRejections": execute_query(top_vqc_rejections_query, query_parameters),
+        "topFtRejections": execute_query(top_ft_rejections_query, query_parameters),
+        "topCsRejections": execute_query(top_cs_rejections_query, query_parameters),
+        "deTechVendorRejections": execute_query(de_tech_vendor_rejections_query, query_parameters),
+        "ihcVendorRejections": execute_query(ihc_vendor_rejections_query, query_parameters),
     }
 
-def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
+def get_report_data(client: BigQueryClient, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
     
-    where_clause = ""
-    conditions = []
+    where_conditions = []
+    query_parameters = []
+
     if start_date and end_date:
-        conditions.append(f"date BETWEEN '{start_date}' AND '{end_date}'")
+        where_conditions.append(f"date BETWEEN @report_start_date AND @report_end_date")
+        query_parameters.append(ScalarQueryParameter("report_start_date", "DATE", str(start_date)))
+        query_parameters.append(ScalarQueryParameter("report_end_date", "DATE", str(end_date)))
     
-    if conditions:
-        where_clause = f"WHERE {' AND '.join(conditions)}"
+    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
         
     # Defaults
     output_col = "vqc_output"
@@ -223,13 +237,15 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         {where_clause}
     """
     
-    rejection_where = where_clause
+    rejection_where_conditions = list(where_conditions) # Copy existing date conditions
+    rejection_query_parameters = list(query_parameters) # Copy existing date parameters
+
     if stage == 'VQC' and vendor and vendor.lower() != 'all':
-        if rejection_where:
-            rejection_where += f" AND vendor = '{vendor}'"
-        else:
-            rejection_where = f"WHERE vendor = '{vendor}'"
+        rejection_where_conditions.append("vendor = @vendor_param")
+        rejection_query_parameters.append(ScalarQueryParameter("vendor_param", "STRING", vendor))
             
+    rejection_where = f"WHERE {' AND '.join(rejection_where_conditions)}" if rejection_where_conditions else ""
+    
     rejection_query = f"""
         SELECT 
             rejection_category,
@@ -243,7 +259,8 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     
     kpis = {}
     try:
-        job = client.query(kpi_query)
+        job_config_kpi = QueryJobConfig(query_parameters=query_parameters)
+        job = client.query(kpi_query, job_config=job_config_kpi)
         res = list(job.result())
         if res:
             kpis = dict(res[0])
@@ -255,7 +272,8 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         
     rejections = []
     try:
-        job = client.query(rejection_query)
+        job_config_rejection = QueryJobConfig(query_parameters=rejection_query_parameters)
+        job = client.query(rejection_query, job_config=job_config_rejection)
         rejections = [dict(row) for row in job.result()]
     except Exception as e:
         print(f"Rejection Query Error: {e}")

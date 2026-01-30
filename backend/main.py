@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from google.cloud import bigquery
+from google.cloud.bigquery import BigQueryClient, ScalarQueryParameter, QueryJobConfig
 from pydantic_settings import BaseSettings
 from typing import Optional
 from datetime import date
@@ -22,7 +22,7 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["https://fqc-dash.vercel.app/"],  # Replace with your frontend origin(s)
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -82,7 +82,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     if stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
 
-    where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
+    where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     if stage in ['RT', 'RT CS']:
         query = f"""
@@ -102,7 +102,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
                 COUNT(DISTINCT CASE WHEN ft_inward_date IS NOT NULL AND cs_comp_date IS NULL AND cs_status IS NULL THEN serial_number END) AS work_in_progress
                 
             FROM {table_to_use}
-            {where_clause}
+            {where_clause_str}
         )
         SELECT
             total_inward,
@@ -133,7 +133,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
                 COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory
                 
             FROM {table_to_use}
-            {where_clause}
+            {where_clause_str}
         )
         SELECT
             total_inward,
@@ -145,17 +145,26 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
         FROM KpiMetrics
         """
     try:
-        query_job = client.query(query)
+        job_config = QueryJobConfig(query_parameters=query_parameters)
+        query_job = client.query(query, job_config=job_config)
         results = query_job.result()
         kpis = [dict(row) for row in results]
         return kpis[0] if kpis else {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPIs: {e}")
 
-def combine_where_clauses(base_clause, additional_conditions):
-    if base_clause:
-        return f"{base_clause} AND {' AND '.join(additional_conditions)}"
-    return f"WHERE {' AND '.join(additional_conditions)}"
+def combine_where_clauses(base_clause_str, base_params, additional_conditions):
+    combined_conditions = []
+    if base_clause_str and base_clause_str.strip().lower().startswith("where"):
+        combined_conditions.append(base_clause_str[len("WHERE"):].strip())
+    elif base_clause_str:
+        combined_conditions.append(base_clause_str)
+
+    combined_conditions.extend(additional_conditions)
+
+    if combined_conditions:
+        return f"WHERE {' AND '.join(combined_conditions)}", base_params
+    return "", base_params
 
 @app.get("/charts")
 async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
@@ -166,11 +175,11 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     if stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
 
-    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     if stage in ['RT', 'RT CS']:
-        vqc_wip_where_clause = combine_where_clauses(base_where_clause, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL"])
-        ft_wip_where_clause = combine_where_clauses(base_where_clause, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "cs_status IS NULL"])
+        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL"])
+        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "cs_status IS NULL"])
     else:
         vqc_wip_conditions = [
             "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
@@ -180,7 +189,7 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
             "vqc_inward_date IS NOT NULL",
             "ft_inward_date IS NULL"
         ]
-        vqc_wip_where_clause = combine_where_clauses(base_where_clause, vqc_wip_conditions)
+        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, vqc_wip_conditions)
 
         ft_wip_conditions = [
             "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
@@ -190,12 +199,12 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
             "vqc_inward_date IS NOT NULL",
             "ft_inward_date IS NOT NULL"
         ]
-        ft_wip_where_clause = combine_where_clauses(base_where_clause, ft_wip_conditions)
+        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ft_wip_conditions)
 
     vqc_wip_query = f"""
     SELECT sku, COUNT(DISTINCT serial_number) AS count
     FROM {table_to_use}
-    {vqc_wip_where_clause}
+    {vqc_wip_where_clause_str}
     GROUP BY sku
     ORDER BY sku ASC
     """
@@ -203,15 +212,17 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     ft_wip_query = f"""
     SELECT sku, COUNT(DISTINCT serial_number) AS count
     FROM {table_to_use}
-    {ft_wip_where_clause}
+    {ft_wip_where_clause_str}
     GROUP BY sku
     ORDER BY sku ASC
     """
     try:
-        vqc_wip_job = client.query(vqc_wip_query)
+        job_config_vqc = QueryJobConfig(query_parameters=query_parameters)
+        vqc_wip_job = client.query(vqc_wip_query, job_config=job_config_vqc)
         vqc_wip_results = [dict(row) for row in vqc_wip_job.result()]
 
-        ft_wip_job = client.query(ft_wip_query)
+        job_config_ft = QueryJobConfig(query_parameters=query_parameters)
+        ft_wip_job = client.query(ft_wip_query, job_config=job_config_ft)
         ft_wip_results = [dict(row) for row in ft_wip_job.result()]
 
         return {
@@ -225,6 +236,16 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
 async def get_skus(table: str = 'master_station_data'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+
+    allowed_tables = [
+        settings.BIGQUERY_TABLE_ID,
+        settings.RT_CONVERSION_TABLE_ID,
+        settings.RING_STATUS_TABLE_ID,
+        settings.REJECTION_ANALYSIS_TABLE_ID
+    ]
+
+    if table not in allowed_tables:
+        raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
     
     table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
     
@@ -240,6 +261,16 @@ async def get_skus(table: str = 'master_station_data'):
 async def get_sizes(table: str = 'master_station_data'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+
+    allowed_tables = [
+        settings.BIGQUERY_TABLE_ID,
+        settings.RT_CONVERSION_TABLE_ID,
+        settings.RING_STATUS_TABLE_ID,
+        settings.REJECTION_ANALYSIS_TABLE_ID
+    ]
+
+    if table not in allowed_tables:
+        raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
 
     table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
 
@@ -257,7 +288,8 @@ async def get_vendors():
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     query = f"SELECT DISTINCT vendor FROM {TABLE} WHERE vendor IS NOT NULL ORDER BY vendor"
     try:
-        query_job = client.query(query)
+        job_config = QueryJobConfig(query_parameters=[])
+        query_job = client.query(query, job_config=job_config)
         results = [row['vendor'] for row in query_job.result()]
         return results
     except Exception as e:
@@ -270,7 +302,8 @@ async def get_last_updated():
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     query = f"SELECT MAX(last_updated_at) as last_updated FROM {TABLE}"
     try:
-        query_job = client.query(query)
+        job_config = QueryJobConfig(query_parameters=[])
+        query_job = client.query(query, job_config=job_config)
         results = list(query_job.result())
         last_updated = results[0]['last_updated'] if results and results[0]['last_updated'] else None
         return {"last_updated_at": last_updated}
@@ -319,15 +352,17 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     if kpi_name not in kpi_conditions:
         raise HTTPException(status_code=404, detail="KPI name not found")
 
-    base_where_clause = build_where_clause(start_date, end_date, size, sku, date_column)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
     kpi_where_condition = kpi_conditions[kpi_name]
 
-    if base_where_clause:
-        full_where_clause = f"{base_where_clause} AND ({kpi_where_condition})"
+    if base_where_clause_str:
+        full_where_clause = f"{base_where_clause_str} AND ({kpi_where_condition})"
     else:
         full_where_clause = f"WHERE {kpi_where_condition}"
     
     offset = (page - 1) * limit
+
+    job_config = QueryJobConfig(query_parameters=query_parameters)
 
     if download:
         data_query = f"""
@@ -347,16 +382,16 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
 
     try:
         if download:
-            data_job = client.query(data_query)
+            data_job = client.query(data_query, job_config=job_config)
             data = [dict(row) for row in data_job.result()]
             return {"data": data}
         else:
             count_query = f"SELECT COUNT(DISTINCT serial_number) as total FROM {table_to_use} {full_where_clause}"
-            count_job = client.query(count_query)
+            count_job = client.query(count_query, job_config=job_config)
             total_rows = list(count_job.result())[0]['total']
             total_pages = (total_rows + limit - 1) // limit
 
-            data_job = client.query(data_query)
+            data_job = client.query(data_query, job_config=job_config)
             data = [dict(row) for row in data_job.result()]
 
             return {
