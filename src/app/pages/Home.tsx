@@ -196,19 +196,19 @@ export const Home: React.FC = () => {
                 </p>
                 <ul className="list-disc list-inside ml-4 mb-4">
                   <li>
-                    <strong>VQC Stage (Default):</strong> Uses <code>vqc_inward_date</code> for date filtering. Queries
+                    <strong>VQC Stage (Default):</strong> Uses vqc inward date from <strong>step 7</strong>sheet for date filtering. Queries
                     the <code>master_station_data</code> table.
                   </li>
                   <li>
-                    <strong>FT Stage:</strong> Uses <code>ft_inward_date</code> for date filtering. Queries
+                    <strong>FT Stage:</strong> Uses ft inward date from <strong>step 8</strong>sheet for date filtering. Queries
                     the <code>master_station_data</code> table.
                   </li>
                   <li>
-                    <strong>CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering. Queries
+                    <strong>CS Stage:</strong> Uses cs complete date from <strong>Charging Station - 2</strong> sheet for date filtering. Queries
                     the <code>master_station_data</code> table.
                   </li>
                   <li>
-                    <strong>RT Stage:</strong> Uses <code>vqc_inward_date</code> for date filtering. Queries
+                    <strong>RT Stage:</strong> Uses vqc inward date from <strong>RT CONVERSION 2.0</strong> sheet for date filtering. Queries
                     the <code>rt_conversion_data</code> table.
                   </li>
                   <li>
