@@ -1,4 +1,5 @@
-from google.cloud.bigquery import BigQueryClient, ScalarQueryParameter, QueryJobConfig
+from google.cloud import bigquery
+from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
 from typing import Optional
 from datetime import date
 
@@ -22,7 +23,7 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def get_analysis_data(client: BigQueryClient, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     # 1. KPIs
@@ -188,7 +189,7 @@ def get_analysis_data(client: BigQueryClient, table: str, start_date: Optional[d
         "ihcVendorRejections": execute_query(ihc_vendor_rejections_query, query_parameters),
     }
 
-def get_report_data(client: BigQueryClient, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
+def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
     
     where_conditions = []
     query_parameters = []
