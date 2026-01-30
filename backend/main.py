@@ -1,7 +1,8 @@
 import os
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from google.cloud.bigquery import BigQueryClient, ScalarQueryParameter, QueryJobConfig
+from google.cloud import bigquery
+from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
 from pydantic_settings import BaseSettings
 from typing import Optional
 from datetime import date
