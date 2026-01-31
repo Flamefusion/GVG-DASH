@@ -183,8 +183,8 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
 
     if stage in ['RT', 'RT CS']:
-        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL", "vqc_reason != 'SCRAP'"])
-        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "ft_status != 'Rejected'"])
+        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL", "(vqc_status != 'SCRAP' OR vqc_status IS NULL)"])
+        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "(ft_status != 'REJECTED' OR ft_status IS NULL)", "(cs_status != 'REJECTED' OR cs_status IS NULL)"])
     else:
         vqc_wip_conditions = [
             "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
