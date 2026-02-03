@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from 'recharts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useDashboard } from '@/app/contexts/DashboardContext';
@@ -28,7 +28,23 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
   const currentData = showDeTech ? deTechData : ihcData;
   const currentTitle = showDeTech ? '3DE Tech Vendor Top 10 Rejection' : 'IHC Vendor Top 10 Rejection';
   
-  const CustomLabel = (props: any) => {
+  const total = currentData.reduce((acc, curr) => acc + curr.value, 0);
+
+  const PercentageLabel = (props: any) => {
+    const { x, y, width, height, value } = props;
+    if (value === 0) return null;
+    const percentage = ((value / total) * 100).toFixed(1);
+    const textX = x + width / 2;
+    const textY = y + height / 2 + 5;
+
+    return (
+      <text x={textX} y={textY} fill="#fff" textAnchor="middle" fontSize={12} fontWeight="bold">
+        {`${percentage}%`}
+      </text>
+    );
+  };
+
+  const ValueLabel = (props: any) => {
     const { x, y, width, value, index } = props;
     const color = COLORS[index % COLORS.length];
     return (
@@ -95,11 +111,12 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
               <Bar
                 dataKey="value"
                 radius={[8, 8, 0, 0]}
-                label={<CustomLabel />}
               >
                 {currentData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
+                <LabelList content={<ValueLabel />} position="top" />
+                <LabelList content={<PercentageLabel />} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
