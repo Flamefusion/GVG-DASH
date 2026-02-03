@@ -4,6 +4,33 @@
 
 This project is a comprehensive, multi-page dashboard for monitoring and analyzing the Final Quality Control (FQC) process at Ultrahuman. It provides a real-time overview of key performance indicators (KPIs), work-in-progress (WIP) tracking, rejection analysis, and detailed reporting functionalities. The dashboard is designed to be intuitive, visually appealing, and highly interactive, with features like dark mode, responsive design, and detailed data modals.
 
+## Pages
+
+The dashboard is organized into three main pages:
+
+*   **Home**: Provides a high-level overview of the FQC process, including key performance indicators (KPIs) and work-in-progress (WIP) tracking across different stages.
+*   **Analysis**: A dedicated page for in-depth rejection analysis. It features a variety of charts to visualize rejection data from different perspectives, such as by status, vendor, and rejection reason.
+*   **Report**: A page for generating and exporting reports. It provides a summary of key metrics and a detailed breakdown of rejections by category, which can be exported as a CSV file.
+
+## Features
+
+*   **Advanced Filtering**: The dashboard features a powerful filtering system that allows users to slice and dice the data. The key filters are:
+    *   **Stage**: The most important filter, which determines the data source and date field used for filtering. The available stages are:
+        *   **VQC (Default)**: Uses `vqc inward date` and queries the `master_station_data` table.
+        *   **FT**: Uses `ft inward date` and queries the `master_station_data` table.
+        *   **CS**: Uses `cs complete date` and queries the `master_station_data` table.
+        *   **RT**: Uses `vqc inward date` and queries the `rt_conversion_data` table.
+        *   **RT CS**: Uses `cs_comp_date` and queries the `rt_conversion_data` table.
+    *   **Date Range**: Allows users to select a custom date range.
+    *   **Size**: Filters the data by size.
+    *   **SKU**: Filters the data by SKU.
+*   **Interactive Charts**: The dashboard uses a variety of interactive charts to visualize the data, including bar charts, line charts, pie charts, and doughnut charts.
+*   **Data Export**: Users can export the data from KPI cards and the Report page as a CSV file.
+*   **Fullscreen Mode**: For an immersive, distraction-free experience.
+*   **Dark Mode**: A sleek dark mode for comfortable viewing in low-light environments.
+*   **"How to Use" Dialog**: A helpful guide for new users, explaining the intricacies of the filtering system.
+*   **Last Data Sync Timestamp**: Shows the freshness of the data.
+
 ## Tech Stack
 
 The dashboard is built with a modern and robust tech stack, ensuring a high-performance and scalable application.
@@ -30,6 +57,9 @@ The dashboard is built with a modern and robust tech stack, ensuring a high-perf
     *   `/skus`: Fetches a list of available SKUs for the filter options.
     *   `/sizes`: Fetches a list of available sizes for the filter options.
     *   `/kpi-data/{kpiKey}`: Fetches detailed, paginated data for a specific KPI, displayed in the data modal.
+    *   `/report-data`: Fetches data for the Report page.
+    *   `/analysis-data`: Fetches data for the Analysis page.
+    *   `/last-updated`: Fetches the timestamp of the last data sync.
 
 ### Key Calculations
 
