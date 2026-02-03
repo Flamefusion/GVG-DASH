@@ -120,9 +120,12 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        <RejectionTrendChart data={analysisData.rejectionTrend} />
+        <VendorRejectionCharts 
+          deTechData={analysisData.deTechVendorRejections}
+          ihcData={analysisData.ihcVendorRejections}
+        />
       </motion.div>
-      
+
       <motion.div
         className="mb-8"
         initial={{ opacity: 0, y: 20 }}
@@ -141,10 +144,7 @@ const Analysis: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.9 }}
       >
-        <VendorRejectionCharts 
-          deTechData={analysisData.deTechVendorRejections}
-          ihcData={analysisData.ihcVendorRejections}
-        />
+        <RejectionTrendChart data={analysisData.rejectionTrend} />
       </motion.div>
     </div>
   );
