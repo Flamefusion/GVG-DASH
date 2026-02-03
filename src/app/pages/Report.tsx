@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { KPICard } from '@/app/components/KPICard';
 import { ReportFilters } from '@/app/components/ReportFilters';
+import { RejectionReport } from '@/app/components/RejectionReport';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 import { Button } from '@/app/components/ui/button';
 import { format } from 'date-fns';
@@ -150,83 +151,91 @@ const Report: React.FC = () => {
         <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           Reports
         </h1>
-        <Button onClick={handleExport} className="flex items-center gap-2">
-          <Download size={16} />
-          Export CSV
-        </Button>
+        {reportFilters.reportType === 'Daily' && (
+          <Button onClick={handleExport} className="flex items-center gap-2">
+            <Download size={16} />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       <ReportFilters />
 
-      {/* Main KPIs - Compact */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {mainKpis.map((card, index) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="h-32" 
-          >
-            <KPICard
-              title={card.title}
-              value={card.value}
-              change={card.suffix || ''}
-              icon={card.icon}
-              color={card.color}
-              onClick={() => {}}
-            />
-          </motion.div>
-        ))}
-      </div>
+      {reportFilters.reportType === 'Rejection' ? (
+        <RejectionReport />
+      ) : (
+        <>
+          {/* Main KPIs - Compact */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            {mainKpis.map((card, index) => (
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="h-32" 
+              >
+                <KPICard
+                  title={card.title}
+                  value={card.value}
+                  change={card.suffix || ''}
+                  icon={card.icon}
+                  color={card.color}
+                  onClick={() => {}}
+                />
+              </motion.div>
+            ))}
+          </div>
 
-      {/* Rejection Category KPIs - Detailed List */}
-      <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Rejection Analysis</h2>
-      <div className="grid grid-cols-5 gap-4 mb-8">
-        {rejectionCategories.map((cat, index) => {
-          const items = data.rejections[cat.key] || [];
-          const total = items.reduce((acc, item) => acc + item.value, 0);
-          
-          return (
-            <motion.div
-              key={cat.key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + (index * 0.1) }}
-            >
-                            <Card className={`h-full flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
-                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
-                                  {cat.title}
-                                </CardTitle>
-                                <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
-                              </CardHeader>
-                              <CardContent className="flex-1 flex flex-col">
-                                <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  {total}
-                                </div>
-                                <div className="space-y-3">
-                                  {items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
-                                      <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-                                        {item.name}
-                                      </span>
-                                      <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
-                                        {item.value}
-                                      </span>
+          {/* Rejection Category KPIs - Detailed List */}
+          <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Rejection Analysis</h2>
+          <div className="grid grid-cols-5 gap-4 mb-8">
+            {rejectionCategories.map((cat, index) => {
+              const items = data.rejections[cat.key] || [];
+              const total = items.reduce((acc, item) => acc + item.value, 0);
+              
+              return (
+                <motion.div
+                  key={cat.key}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + (index * 0.1) }}
+                >
+                                <Card className={`h-full flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+                                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
+                                      {cat.title}
+                                    </CardTitle>
+                                    <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
+                                  </CardHeader>
+                                  <CardContent className="flex-1 flex flex-col">
+                                    <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {total}
                                     </div>
-                                  ))}
-                                  {items.length === 0 && (
-                                    <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                      No rejections recorded
+                                    <div className="space-y-3">
+                                      {items.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
+                                          <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+                                            {item.name}
+                                          </span>
+                                          <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
+                                            {item.value}
+                                          </span>
+                                        </div>
+                                      ))}
+                                      {items.length === 0 && (
+                                        <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                          No rejections recorded
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>            </motion.div>
-          );
-        })}
-      </div>
+                                  </CardContent>
+                                </Card>            </motion.div>
+              );
+            })}
+          </div>
+        </>
+      )}
       
     </div>
   );

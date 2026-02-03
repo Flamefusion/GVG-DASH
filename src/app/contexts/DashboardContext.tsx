@@ -56,6 +56,7 @@ export interface ReportFilters {
   dateRange: { from: Date | null; to: Date | null };
   vendor: string;
   stage: string;
+  reportType: 'Daily' | 'Rejection';
 }
 
 interface DashboardContextType {
@@ -103,6 +104,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     dateRange: { from: null, to: null },
     vendor: 'all',
     stage: 'VQC',
+    reportType: 'Daily',
   });
   const [kpis, setKpis] = useState<KPI | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);

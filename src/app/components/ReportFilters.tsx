@@ -104,6 +104,16 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
         </SelectContent>
       </Select>
+
+      <Select value={reportFilters.reportType} onValueChange={(val: 'Daily' | 'Rejection') => setReportFilters({ ...reportFilters, reportType: val })}>
+        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
+          <SelectValue placeholder="Report Type" />
+        </SelectTrigger>
+        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+          <SelectItem value="Daily">Daily Report</SelectItem>
+          <SelectItem value="Rejection">Rejection Report</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 };

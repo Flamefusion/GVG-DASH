@@ -3,6 +3,63 @@ from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
 from typing import Optional
 from datetime import date
 
+FIXED_REJECTION_ROWS = [
+    ("ASSEMBLY", "BLACK GLUE"),
+    ("ASSEMBLY", "ULTRAHUMAN TEXT SMUDGED"),
+    ("ASSEMBLY", "WHITE PATCH ON BATTERY"),
+    ("ASSEMBLY", "WHITE PATCH ON PCB"),
+    ("ASSEMBLY", "WHITE PATCH ON BLACK TAPE"),
+    ("ASSEMBLY", "WRONG RX COIL"),
+    ("CASTING", "MICRO BUBBLES"),
+    ("CASTING", "ALIGNMENT ISSUE"),
+    ("CASTING", "DENT ON RESIN"),
+    ("CASTING", "DUST INSIDE RESIN"),
+    ("CASTING", "RESIN CURING ISSUE"),
+    ("CASTING", "SHORT FILL OF RESIN"),
+    ("CASTING", "SPM REJECTION"),
+    ("CASTING", "TIGHT FIT FOR CHARGE"),
+    ("CASTING", "LOOSE FITTING ON CHARGER"),
+    ("CASTING", "RESIN SHRINKAGE"),
+    ("CASTING", "WRONG MOULD"),
+    ("CASTING", "GLOP TOP ISSUE"),
+    ("FUNCTIONAL", "100% ISSUE"),
+    ("FUNCTIONAL", "3 SENSOR ISSUE"),
+    ("FUNCTIONAL", "BATTERY ISSUE"),
+    ("FUNCTIONAL", "BLUETOOTH HEIGHT ISSUE"),
+    ("FUNCTIONAL", "CE TAPE ISSUE"),
+    ("FUNCTIONAL", "CHARGING CODE ISSUE"),
+    ("FUNCTIONAL", "COIL THICKNESS ISSUE/BATTERY THICKNESS"),
+    ("FUNCTIONAL", "COMPONENT HEIGHT ISSUE"),
+    ("FUNCTIONAL", "CURRENT ISSUE"),
+    ("FUNCTIONAL", "DISCONNECTING ISSUE"),
+    ("FUNCTIONAL", "HRS BUBBLE"),
+    ("FUNCTIONAL", "HRS COATING HEIGHT ISSUE"),
+    ("FUNCTIONAL", "HRS DOUBLE LIGHT ISSUE"),
+    ("FUNCTIONAL", "HRS HEIGHT ISSUE"),
+    ("FUNCTIONAL", "NO NOTIFICATION IN CDT"),
+    ("FUNCTIONAL", "NOT ADVERTISING (WINGLESS PCB)"),
+    ("FUNCTIONAL", "NOT CHARGING"),
+    ("FUNCTIONAL", "SENSOR ISSUE"),
+    ("FUNCTIONAL", "STC ISSUE"),
+    ("FUNCTIONAL", "R&D REJECTION"),
+    ("POLISHING", "IMPROPER RESIN FINISH"),
+    ("POLISHING", "RESIN DAMAGE"),
+    ("POLISHING", "RX COIL SCRATCH"),
+    ("POLISHING", "SCRATCHES ON RESIN"),
+    ("POLISHING", "SIDE SCRATCH"),
+    ("POLISHING", "SIDE SCRATCH (EMERY)"),
+    ("POLISHING", "SHELL COATING REMOVED"),
+    ("POLISHING", "UNEVEN POLISHING"),
+    ("POLISHING", "WHITE PATCH ON SHELL AFTER POLISHING"),
+    ("POLISHING", "SCRATCHES ON SHELL"),
+    ("SHELL", "BLACK MARKS ON SHELL"),
+    ("SHELL", "DENT ON SHELL"),
+    ("SHELL", "DISCOLORATION"),
+    ("SHELL", "IRREGULAR SHELL SHAPE"),
+    ("SHELL", "SHELL COATING ISSUE"),
+    ("SHELL", "WHITE MARKS ON SHELL")
+]
+
 def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str], date_column: str = 'vqc_inward_date') -> tuple[str, list[ScalarQueryParameter]]:
     where_conditions = []
     query_parameters = []
@@ -289,4 +346,122 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     return {
         "kpis": kpis,
         "rejections": grouped_rejections
+    }
+
+def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all'):
+    where_conditions = []
+    query_parameters = []
+
+    if start_date and end_date:
+        where_conditions.append(f"date BETWEEN @start_date AND @end_date")
+        query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
+        query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
+    
+    if vendor and vendor.lower() != 'all':
+        where_conditions.append("vendor = @vendor")
+        query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
+    
+    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+
+    query = f"""
+        SELECT 
+            date,
+            rejection_category,
+            vqc_reason as reason,
+            SUM(count) as count
+        FROM {rejection_analysis_table}
+        {where_clause}
+        GROUP BY 1, 2, 3
+        ORDER BY date
+    """
+    
+    try:
+        job_config = QueryJobConfig(query_parameters=query_parameters)
+        job = client.query(query, job_config=job_config)
+        rows = [dict(row) for row in job.result()]
+    except Exception as e:
+        print(f"Rejection Report Query Error: {e}")
+        return {"error": str(e)}
+
+    # Process data for KPIs and Table
+    
+    # KPIs
+    kpis = {
+        "TOTAL REJECTIONS": 0,
+        "ASSEMBLY": 0,
+        "CASTING": 0,
+        "FUNCTIONAL": 0,
+        "POLISHING": 0,
+        "SHELL": 0
+    }
+    
+    # Table Data Structure
+    # Map: category -> reason -> { date: count, total: sum }
+    table_data_map = {}
+    all_dates = set()
+
+    for row in rows:
+        row_date = row['date'].strftime('%Y-%m-%d') if row['date'] else None
+        if not row_date: continue
+        
+        all_dates.add(row_date)
+        cat = row['rejection_category']
+        reason = row['reason']
+        count = row['count']
+
+        # Update KPIs (Include everything in KPIs even if not in table)
+        kpis["TOTAL REJECTIONS"] += count
+        if cat in kpis:
+            kpis[cat] += count
+        
+        # Merge "PRE NA" and "POST NA" into "NOT ADVERTISING (WINGLESS PCB)" for the table
+        if reason in ['PRE NA', 'POST NA']:
+            reason = 'NOT ADVERTISING (WINGLESS PCB)'
+            # Ensure category is correct for merged item if needed, but assuming FUNCTIONAL is correct
+            cat = 'FUNCTIONAL' 
+        
+        # Only process reasons that are in the fixed list (after merging)
+        # Note: This means reasons not in the list (and not merged to one in the list) are excluded from the table
+        # but included in KPIs above.
+        
+        # Update Table Map
+        if cat not in table_data_map:
+            table_data_map[cat] = {}
+        if reason not in table_data_map[cat]:
+            table_data_map[cat][reason] = {"total": 0, "dates": {}}
+        
+        if row_date not in table_data_map[cat][reason]["dates"]:
+            table_data_map[cat][reason]["dates"][row_date] = 0
+            
+        table_data_map[cat][reason]["dates"][row_date] += count
+        table_data_map[cat][reason]["total"] += count
+
+    # Format Table Data List using FIXED_REJECTION_ROWS
+    table_rows = []
+    sorted_dates = sorted(list(all_dates))
+
+    for stage, rejection_type in FIXED_REJECTION_ROWS:
+        row = {
+            "stage": stage,
+            "rejection_type": rejection_type,
+            "total": 0
+        }
+        
+        # Check if we have data for this row
+        if stage in table_data_map and rejection_type in table_data_map[stage]:
+             data = table_data_map[stage][rejection_type]
+             row["total"] = data["total"]
+             for d in sorted_dates:
+                 row[d] = data["dates"].get(d, 0)
+        else:
+             # No data, fill 0s
+             for d in sorted_dates:
+                 row[d] = 0
+        
+        table_rows.append(row)
+
+    return {
+        "kpis": kpis,
+        "table_data": table_rows,
+        "dates": sorted_dates
     }

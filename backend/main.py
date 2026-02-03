@@ -6,7 +6,7 @@ from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
 from pydantic_settings import BaseSettings
 from typing import Optional
 from datetime import date
-from analysis import get_analysis_data, build_where_clause, get_report_data
+from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data
 
 class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
@@ -77,6 +77,20 @@ async def get_report(
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
+
+@app.get("/rejection-report-data")
+async def get_rejection_report(
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None, 
+    vendor: str = Query('all', description="Vendor name")
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    try:
+        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
 
 @app.get("/kpis")
 async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
