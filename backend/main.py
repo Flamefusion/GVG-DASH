@@ -1,12 +1,15 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends, status, Body
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google.cloud import bigquery
 from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
 from pydantic_settings import BaseSettings
+from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, timedelta
 from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data
+from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
@@ -15,10 +18,26 @@ class Settings(BaseSettings):
     RT_CONVERSION_TABLE_ID: str = 'rt_conversion_data'
     RING_STATUS_TABLE_ID: str = 'ring_status'
     REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
+    USERS_TABLE_ID: str = 'users'
 
 settings = Settings()
 
 app = FastAPI()
+
+# Auth Models
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class User(BaseModel):
+    email: str
+    role: Optional[str] = None
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Configure CORS
 app.add_middleware(
@@ -40,6 +59,7 @@ try:
     RT_CONVERSION_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.RT_CONVERSION_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'ring_status')}`"
     REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'rejection_analysis')}`"
+    USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.USERS_TABLE_ID}`"
 
 except Exception as e:
     print(f"Error initializing BigQuery client: {e}")
@@ -48,6 +68,51 @@ except Exception as e:
     RT_CONVERSION_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.RT_CONVERSION_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.ring_status`"
     REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.rejection_analysis`"
+    USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.users`"
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not client:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    query = f"SELECT * FROM {USERS_TABLE} WHERE email = @email LIMIT 1"
+    job_config = QueryJobConfig(query_parameters=[
+        ScalarQueryParameter("email", "STRING", form_data.username)
+    ])
+    
+    try:
+        query_job = client.query(query, job_config=job_config)
+        results = list(query_job.result())
+        
+        if not results:
+             raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        user_row = results[0]
+        if not verify_password(form_data.password, user_row['password_hash']):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user_row['email'], "role": user_row['role']}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except Exception as e:
+        print(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
+# Helper endpoint to generate a hash for admins to use when manually creating users
+@app.post("/generate-hash")
+async def generate_hash(password: str = Body(..., embed=True)):
+    return {"hash": get_password_hash(password)}
 
 @app.get("/")
 def read_root():
