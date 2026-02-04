@@ -93,7 +93,6 @@ const Analysis: React.FC = () => {
             <KPICard
               title={card.title}
               value={card.value}
-              change=""
               icon={card.icon}
               color={card.color}
               onClick={() => {}}

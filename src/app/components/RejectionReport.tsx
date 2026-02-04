@@ -140,7 +140,6 @@ export const RejectionReport: React.FC = () => {
             value={data.kpis[item.key] || 0}
             icon={item.icon}
             color={item.color}
-            change=""
             onClick={() => {}}
           />
         ))}

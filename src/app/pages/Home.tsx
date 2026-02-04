@@ -116,7 +116,6 @@ export const Home: React.FC = () => {
       title: 'TOTAL INWARD',
       kpiKey: 'total_inward',
       value: kpis.total_inward,
-      change: '+12%',
       icon: Package,
       color: '#3b82f6',
     },
@@ -124,7 +123,6 @@ export const Home: React.FC = () => {
       title: 'QC ACCEPTED',
       kpiKey: 'qc_accepted',
       value: kpis.qc_accepted,
-      change: '+8%',
       icon: CheckCircle,
       color: '#10b981',
     },
@@ -132,7 +130,6 @@ export const Home: React.FC = () => {
       title: 'TESTING ACCEPTED',
       kpiKey: 'testing_accepted',
       value: kpis.testing_accepted,
-      change: '+5%',
       icon: FlaskConical,
       color: '#8b5cf6',
     },
@@ -140,7 +137,6 @@ export const Home: React.FC = () => {
       title: 'TOTAL REJECTED',
       kpiKey: 'total_rejected',
       value: kpis.total_rejected,
-      change: '-3%',
       icon: XCircle,
       color: '#ef4444',
     },
@@ -148,7 +144,6 @@ export const Home: React.FC = () => {
       title: 'MOVED TO INVENTORY',
       kpiKey: 'moved_to_inventory',
       value: kpis.moved_to_inventory,
-      change: '+10%',
       icon: Archive,
       color: '#f59e0b',
     },
@@ -156,7 +151,6 @@ export const Home: React.FC = () => {
       title: 'WORK IN PROGRESS',
       kpiKey: 'work_in_progress',
       value: kpis.work_in_progress,
-      change: '+2%',
       icon: Clock,
       color: '#06b6d4',
     },
@@ -272,10 +266,9 @@ export const Home: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <KPICard
+            <KPICard
                 title={card.title}
                 value={card.value}
-                change={card.change}
                 icon={card.icon}
                 color={card.color}
                 onClick={() => handleKPIClick(card.title, card.kpiKey)}

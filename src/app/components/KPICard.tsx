@@ -5,8 +5,8 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 
 interface KPICardProps {
   title: string;
-  value: number;
-  change: string;
+  value: number | string;
+  suffix?: string;
   icon: LucideIcon;
   color: string;
   onClick: () => void;
@@ -25,7 +25,7 @@ const getGradient = (color: string) => {
   return gradients[color] || `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`;
 };
 
-export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon: Icon, color, onClick }) => {
+export const KPICard: React.FC<KPICardProps> = ({ title, value, suffix, icon: Icon, color, onClick }) => {
   const { darkMode } = useDashboard();
 
   return (
@@ -58,16 +58,8 @@ export const KPICard: React.FC<KPICardProps> = ({ title, value, change, icon: Ic
             animate={{ opacity: 1, y: 0 }}
             className="text-3xl font-extrabold text-black mb-2"
           >
-            {value.toLocaleString()}
+            {typeof value === 'number' ? value.toLocaleString() : value}{suffix}
           </motion.p>
-          <div className="flex items-center gap-1">
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              change.startsWith('+') ? 'bg-green-400/30 text-black' : 'bg-red-400/30 text-black'
-            }`}>
-              {change}
-            </span>
-            <span className="text-xs text-black">vs last month</span>
-          </div>
         </div>
       </div>
     </motion.div>

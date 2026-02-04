@@ -178,7 +178,7 @@ const Report: React.FC = () => {
                 <KPICard
                   title={card.title}
                   value={card.value}
-                  change={card.suffix || ''}
+                  suffix={card.suffix || ''}
                   icon={card.icon}
                   color={card.color}
                   onClick={() => {}}
