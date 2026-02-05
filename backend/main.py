@@ -3,10 +3,10 @@ from fastapi import FastAPI, HTTPException, Query, Depends, status, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google.cloud import bigquery
-from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
+from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig, ArrayQueryParameter
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import date, timedelta
 from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data
 from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
@@ -486,6 +486,132 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPI data: {e}")
+
+
+@app.get("/search")
+async def search_data(
+    page: int = 1,
+    limit: int = 100,
+    serial_numbers: Optional[str] = Query(None, description="Comma-separated serial numbers"),
+    stage: str = Query('All', description="Stage: VQC, FT, CS, RT, All"),
+    vendor: Optional[str] = None,
+    vqc_status: Optional[List[str]] = Query(None),
+    rejection_reasons: Optional[List[str]] = Query(None),
+    mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+
+    # Determine Table and Date Column
+    table_to_use = TABLE
+    date_column = 'vqc_inward_date' # Default
+
+    if stage == 'RT':
+        table_to_use = RT_CONVERSION_TABLE
+        date_column = 'vqc_inward_date'
+    elif stage == 'FT':
+        date_column = 'ft_inward_date'
+    elif stage == 'CS':
+        date_column = 'cs_comp_date'
+    # 'VQC' and 'All' use default date_column 'vqc_inward_date' and default TABLE
+
+    conditions = []
+    query_parameters = []
+
+    # 1. Serial Numbers (Bulk Search)
+    if serial_numbers:
+        # Split by comma, strip whitespace, and filter empty strings
+        sn_list = [sn.strip() for sn in serial_numbers.split(',') if sn.strip()]
+        if sn_list:
+            conditions.append(f"serial_number IN UNNEST(@serial_numbers)")
+            query_parameters.append(ArrayQueryParameter("serial_numbers", "STRING", sn_list))
+
+    # 2. Date Range
+    if start_date and end_date:
+        conditions.append(f"{date_column} BETWEEN @start_date AND @end_date")
+        query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
+        query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
+
+    # 3. Vendor
+    if vendor and vendor.lower() != 'all':
+        conditions.append("vendor = @vendor")
+        query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
+
+    # 4. VQC Status (Multi-select)
+    if vqc_status:
+        conditions.append("vqc_status IN UNNEST(@vqc_status_list)")
+        query_parameters.append(ArrayQueryParameter("vqc_status_list", "STRING", vqc_status))
+
+    # 5. Rejection Reason (Multi-select across columns)
+    if rejection_reasons:
+        # Logic: (vqc_reason IN list OR ft_reason IN list OR cs_reason IN list)
+        conditions.append("""
+            (vqc_reason IN UNNEST(@rejection_reasons) OR 
+             ft_reason IN UNNEST(@rejection_reasons) OR 
+             cs_reason IN UNNEST(@rejection_reasons))
+        """)
+        query_parameters.append(ArrayQueryParameter("rejection_reasons", "STRING", rejection_reasons))
+
+    # 6. MO Number (Bulk Search)
+    if mo_numbers:
+        mo_list = [mo.strip() for mo in mo_numbers.split(',') if mo.strip()]
+        if mo_list:
+            if stage == 'RT':
+                # For RT: ctpf_po OR air_mo
+                conditions.append("""
+                    (ctpf_po IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
+                """)
+            else:
+                # For others: ctpf_mo OR air_mo
+                conditions.append("""
+                    (ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
+                """)
+            query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
+
+    # Construct WHERE clause
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    # Pagination
+    offset = (page - 1) * limit
+
+    # Count Query
+    count_query = f"SELECT COUNT(*) as total FROM {table_to_use} {where_clause}"
+    
+    # Data Query
+    data_query = f"""
+        SELECT *
+        FROM {table_to_use}
+        {where_clause}
+        ORDER BY {date_column} DESC
+        LIMIT @limit OFFSET @offset
+    """
+    query_parameters.append(ScalarQueryParameter("limit", "INT64", limit))
+    query_parameters.append(ScalarQueryParameter("offset", "INT64", offset))
+
+    try:
+        # Execute Count
+        job_config_count = QueryJobConfig(query_parameters=[p for p in query_parameters if p.name not in ['limit', 'offset']])
+        count_job = client.query(count_query, job_config=job_config_count)
+        total_rows = list(count_job.result())[0]['total']
+        total_pages = (total_rows + limit - 1) // limit
+
+        # Execute Data
+        job_config_data = QueryJobConfig(query_parameters=query_parameters)
+        data_job = client.query(data_query, job_config=job_config_data)
+        data = [dict(row) for row in data_job.result()]
+
+        return {
+            "data": data,
+            "total_pages": total_pages,
+            "current_page": page,
+            "total_records": total_rows
+        }
+
+    except Exception as e:
+        print(f"Search Query Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error executing search: {str(e)}")
 
 
 if __name__ == "__main__":
