@@ -500,6 +500,7 @@ async def search_data(
     mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    download: bool = False,
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
@@ -576,38 +577,53 @@ async def search_data(
     # Pagination
     offset = (page - 1) * limit
 
-    # Count Query
-    count_query = f"SELECT COUNT(*) as total FROM {table_to_use} {where_clause}"
-    
-    # Data Query
-    data_query = f"""
-        SELECT *
-        FROM {table_to_use}
-        {where_clause}
-        ORDER BY {date_column} DESC
-        LIMIT @limit OFFSET @offset
-    """
-    query_parameters.append(ScalarQueryParameter("limit", "INT64", limit))
-    query_parameters.append(ScalarQueryParameter("offset", "INT64", offset))
+    if download:
+        data_query = f"""
+            SELECT *
+            FROM {table_to_use}
+            {where_clause}
+            ORDER BY {date_column} DESC
+        """
+        # No LIMIT/OFFSET for download
+    else:
+        # Count Query
+        count_query = f"SELECT COUNT(*) as total FROM {table_to_use} {where_clause}"
+        
+        # Data Query
+        data_query = f"""
+            SELECT *
+            FROM {table_to_use}
+            {where_clause}
+            ORDER BY {date_column} DESC
+            LIMIT @limit OFFSET @offset
+        """
+        query_parameters.append(ScalarQueryParameter("limit", "INT64", limit))
+        query_parameters.append(ScalarQueryParameter("offset", "INT64", offset))
 
     try:
-        # Execute Count
-        job_config_count = QueryJobConfig(query_parameters=[p for p in query_parameters if p.name not in ['limit', 'offset']])
-        count_job = client.query(count_query, job_config=job_config_count)
-        total_rows = list(count_job.result())[0]['total']
-        total_pages = (total_rows + limit - 1) // limit
+        if download:
+            job_config_data = QueryJobConfig(query_parameters=query_parameters)
+            data_job = client.query(data_query, job_config=job_config_data)
+            data = [dict(row) for row in data_job.result()]
+            return {"data": data}
+        else:
+            # Execute Count
+            job_config_count = QueryJobConfig(query_parameters=[p for p in query_parameters if p.name not in ['limit', 'offset']])
+            count_job = client.query(count_query, job_config=job_config_count)
+            total_rows = list(count_job.result())[0]['total']
+            total_pages = (total_rows + limit - 1) // limit
 
-        # Execute Data
-        job_config_data = QueryJobConfig(query_parameters=query_parameters)
-        data_job = client.query(data_query, job_config=job_config_data)
-        data = [dict(row) for row in data_job.result()]
+            # Execute Data
+            job_config_data = QueryJobConfig(query_parameters=query_parameters)
+            data_job = client.query(data_query, job_config=job_config_data)
+            data = [dict(row) for row in data_job.result()]
 
-        return {
-            "data": data,
-            "total_pages": total_pages,
-            "current_page": page,
-            "total_records": total_rows
-        }
+            return {
+                "data": data,
+                "total_pages": total_pages,
+                "current_page": page,
+                "total_records": total_rows
+            }
 
     except Exception as e:
         print(f"Search Query Error: {e}")

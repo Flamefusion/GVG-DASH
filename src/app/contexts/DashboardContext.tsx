@@ -59,11 +59,33 @@ export interface ReportFilters {
   reportType: 'Daily' | 'Rejection';
 }
 
+export interface SearchFilters {
+  serialNumbers: string;
+  moNumbers: string;
+  stage: string;
+  vendor: string;
+  selectedStatuses: string[];
+  selectedReasons: string[];
+  dateRange: { from: Date | null; to: Date | null };
+}
+
+export interface SearchResults {
+  data: any[];
+  totalRecords: number;
+  totalPages: number;
+  currentPage: number;
+  hasSearched: boolean;
+}
+
 interface DashboardContextType {
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
   reportFilters: ReportFilters;
   setReportFilters: (filters: ReportFilters) => void;
+  searchFilters: SearchFilters;
+  setSearchFilters: React.Dispatch<React.SetStateAction<SearchFilters>>;
+  searchResults: SearchResults;
+  setSearchResults: React.Dispatch<React.SetStateAction<SearchResults>>;
   applyFilters: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -106,6 +128,23 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     stage: 'VQC',
     reportType: 'Daily',
   });
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    serialNumbers: '',
+    moNumbers: '',
+    stage: 'All',
+    vendor: 'all',
+    selectedStatuses: [],
+    selectedReasons: [],
+    dateRange: { from: null, to: null },
+  });
+  const [searchResults, setSearchResults] = useState<SearchResults>({
+    data: [],
+    totalRecords: 0,
+    totalPages: 0,
+    currentPage: 1,
+    hasSearched: false,
+  });
+
   const [kpis, setKpis] = useState<KPI | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
   const [ftWipChart, setFtWipChart] = useState<ChartData[]>([]);
@@ -234,6 +273,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         setFilters,
         reportFilters,
         setReportFilters,
+        searchFilters,
+        setSearchFilters,
+        searchResults,
+        setSearchResults,
         applyFilters,
         darkMode,
         toggleDarkMode,
