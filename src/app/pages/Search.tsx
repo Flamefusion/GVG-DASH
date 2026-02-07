@@ -39,6 +39,8 @@ const Search: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [vendorsList, setVendorsList] = useState<string[]>([]);
+  const [skusList, setSkusList] = useState<string[]>([]);
+  const [sizesList, setSizesList] = useState<string[]>([]);
 
   // Filter Popover States
   const [statusOpen, setStatusOpen] = useState(false);
@@ -62,6 +64,25 @@ const Search: React.FC = () => {
     fetchVendors();
   }, []);
 
+  useEffect(() => {
+    // Fetch SKUs and Sizes based on stage
+    const fetchFilterOptions = async () => {
+      try {
+        const table = searchFilters.stage === 'RT' ? 'rt_conversion_data' : 'master_station_data';
+        const [skusRes, sizesRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/skus?table=${table}`),
+          fetch(`${BACKEND_URL}/sizes?table=${table}`)
+        ]);
+
+        if (skusRes.ok) setSkusList(await skusRes.json());
+        if (sizesRes.ok) setSizesList(await sizesRes.json());
+      } catch (error) {
+        console.error("Failed to fetch filter options", error);
+      }
+    };
+    fetchFilterOptions();
+  }, [searchFilters.stage]);
+
   const buildSearchParams = (page = 1, download = false) => {
     const params = new URLSearchParams();
     if (!download) {
@@ -75,6 +96,8 @@ const Search: React.FC = () => {
     if (searchFilters.moNumbers.trim()) params.append('mo_numbers', searchFilters.moNumbers.replace(/\n/g, ','));
     if (searchFilters.stage && searchFilters.stage !== 'All') params.append('stage', searchFilters.stage);
     if (searchFilters.vendor && searchFilters.vendor !== 'all') params.append('vendor', searchFilters.vendor);
+    if (searchFilters.size && searchFilters.size !== 'all') params.append('size', searchFilters.size);
+    if (searchFilters.sku && searchFilters.sku !== 'all') params.append('sku', searchFilters.sku);
     
     searchFilters.selectedStatuses.forEach(s => params.append('vqc_status', s));
     searchFilters.selectedReasons.forEach(r => params.append('rejection_reasons', r));
@@ -177,6 +200,8 @@ const Search: React.FC = () => {
       moNumbers: '',
       stage: 'All',
       vendor: 'all',
+      size: 'all',
+      sku: 'all',
       selectedStatuses: [],
       selectedReasons: [],
       dateRange: { from: null, to: null },
@@ -276,11 +301,43 @@ const Search: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
                       <SelectItem value="all">All Vendors</SelectItem>
-                      {vendorsList.map(v => (
+                      {vendorsList.filter(v => v && v.trim() !== '').map(v => (
                         <SelectItem key={v} value={v}>{v}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-2">
+                    <Label className="font-semibold">Size</Label>
+                    <Select value={searchFilters.size} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, size: val }))}>
+                      <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                        <SelectValue placeholder="Select Size" />
+                      </SelectTrigger>
+                      <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
+                        <SelectItem value="all">All Sizes</SelectItem>
+                        {sizesList.filter(s => s && s.trim() !== '').map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <Label className="font-semibold">SKU</Label>
+                    <Select value={searchFilters.sku} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, sku: val }))}>
+                      <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                        <SelectValue placeholder="Select SKU" />
+                      </SelectTrigger>
+                      <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
+                        <SelectItem value="all">All SKUs</SelectItem>
+                        {skusList.filter(sku => sku && sku.trim() !== '').map(sku => (
+                          <SelectItem key={sku} value={sku}>{sku}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -344,67 +401,67 @@ const Search: React.FC = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
+
+                <div className="flex items-center gap-4 pt-2">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date From</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
+                            {searchFilters.dateRange.from ? format(searchFilters.dateRange.from, "yyyy-MM-dd") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={searchFilters.dateRange.from || undefined} onSelect={(d) => setSearchFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, from: d || null } }))} initialFocus /></PopoverContent>
+                      </Popover>
+                  </div>
+                  
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date To</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
+                            {searchFilters.dateRange.to ? format(searchFilters.dateRange.to, "yyyy-MM-dd") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={searchFilters.dateRange.to || undefined} onSelect={(d) => setSearchFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, to: d || null } }))} initialFocus /></PopoverContent>
+                      </Popover>
+                  </div>
+                </div>
               </div>
               
-              {/* Date Range & Action - Full Width Row */}
-              <div className="col-span-1 md:col-span-2 lg:col-span-4 flex flex-wrap gap-4 items-end border-t pt-6 border-gray-100 dark:border-gray-700">
-                 <div className="space-y-1">
-                   <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date From</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={`w-[160px] justify-start text-left font-normal ${!searchFilters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
-                          {searchFilters.dateRange.from ? format(searchFilters.dateRange.from, "yyyy-MM-dd") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={searchFilters.dateRange.from || undefined} onSelect={(d) => setSearchFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, from: d || null } }))} initialFocus /></PopoverContent>
-                    </Popover>
-                 </div>
-                 
-                 <div className="space-y-1">
-                   <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date To</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={`w-[160px] justify-start text-left font-normal ${!searchFilters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
-                          {searchFilters.dateRange.to ? format(searchFilters.dateRange.to, "yyyy-MM-dd") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={searchFilters.dateRange.to || undefined} onSelect={(d) => setSearchFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, to: d || null } }))} initialFocus /></PopoverContent>
-                    </Popover>
-                 </div>
+              {/* Action Buttons - New full width row at the bottom */}
+              <div className="col-span-1 md:col-span-2 lg:col-span-4 flex justify-end gap-2 border-t pt-6 border-gray-100 dark:border-gray-700">
+                  <Button
+                    variant="outline"
+                    onClick={handleExport}
+                    disabled={loading || exporting}
+                    className={`px-4 shadow-sm transition-all ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'}`}
+                  >
+                    {exporting ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
+                        Exporting...
+                      </>
+                    ) : (
+                      <><SearchIcon className="mr-2 h-4 w-4" /> Export CSV</>
+                    )}
+                  </Button>
 
-                 <div className="ml-auto flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleExport}
-                      disabled={loading || exporting}
-                      className={`px-4 shadow-sm transition-all ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'}`}
-                    >
-                      {exporting ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
-                          Exporting...
-                        </>
-                      ) : (
-                        <><SearchIcon className="mr-2 h-4 w-4" /> Export CSV</>
-                      )}
-                    </Button>
-
-                    <Button 
-                      onClick={() => handleSearch(1)} 
-                      disabled={loading || exporting}
-                      className="px-8 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                      style={{ backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-                    >
-                      {loading ? (
-                        <div className="flex items-center gap-2">
-                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                           Searching...
-                        </div>
-                      ) : (
-                        <><SearchIcon className="mr-2 h-4 w-4" /> Run Search</>
-                      )}
-                    </Button>
-                 </div>
+                  <Button 
+                    onClick={() => handleSearch(1)} 
+                    disabled={loading || exporting}
+                    className="px-8 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                    style={{ backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Searching...
+                      </div>
+                    ) : (
+                      <><SearchIcon className="mr-2 h-4 w-4" /> Run Search</>
+                    )}
+                  </Button>
               </div>
 
             </CardContent>

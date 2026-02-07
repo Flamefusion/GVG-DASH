@@ -498,6 +498,8 @@ async def search_data(
     vqc_status: Optional[List[str]] = Query(None),
     rejection_reasons: Optional[List[str]] = Query(None),
     mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
+    size: Optional[str] = Query(None, description="Filter by size"),
+    sku: Optional[str] = Query(None, description="Filter by SKU"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     download: bool = False,
@@ -570,6 +572,16 @@ async def search_data(
                     (ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
                 """)
             query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
+
+    # 7. Size
+    if size and size.lower() != 'all':
+        conditions.append("size = @size")
+        query_parameters.append(ScalarQueryParameter("size", "STRING", size))
+
+    # 8. SKU
+    if sku and sku.lower() != 'all':
+        conditions.append("sku = @sku")
+        query_parameters.append(ScalarQueryParameter("sku", "STRING", sku))
 
     # Construct WHERE clause
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""

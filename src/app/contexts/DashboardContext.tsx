@@ -64,6 +64,8 @@ export interface SearchFilters {
   moNumbers: string;
   stage: string;
   vendor: string;
+  size: string;
+  sku: string;
   selectedStatuses: string[];
   selectedReasons: string[];
   dateRange: { from: Date | null; to: Date | null };
@@ -133,6 +135,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     moNumbers: '',
     stage: 'All',
     vendor: 'all',
+    size: 'all',
+    sku: 'all',
     selectedStatuses: [],
     selectedReasons: [],
     dateRange: { from: null, to: null },
