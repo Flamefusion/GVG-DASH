@@ -17,25 +17,27 @@ export const RejectionTrendChart: React.FC<RejectionTrendChartProps> = ({ data }
   const chartData = data || [];
 
   return (
-    <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
       <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Trend</h3>
       <ResponsiveContainer width="100%" height={300}>
         {chartData.length > 0 ? (
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#1a1a1a' : '#e5e7eb'} />
             <XAxis 
               dataKey="day" 
-              stroke={darkMode ? '#9ca3af' : '#6b7280'}
+              stroke={darkMode ? '#a3a3a3' : '#737373'}
               tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             />
-            <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+            <YAxis stroke={darkMode ? '#a3a3a3' : '#737373'} />
             <Tooltip
               contentStyle={{
-                backgroundColor: darkMode ? '#1f2937' : '#fff',
-                border: '1px solid #374151',
+                backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+                border: '1px solid #1a1a1a',
                 borderRadius: '0.5rem',
+                color: darkMode ? '#fff' : '#000',
               }}
-              labelStyle={{ color: darkMode ? '#f3f4f6' : '#111827' }}
+              itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+              labelStyle={{ color: darkMode ? '#f3f4f6' : '#000000' }}
             />
             <Legend />
             <Line 

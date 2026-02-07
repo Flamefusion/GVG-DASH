@@ -145,7 +145,7 @@ const Report: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen p-8 transition-colors ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}
+      className={`min-h-screen p-8 transition-colors ${darkMode ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}
     >
       <div className="flex justify-between items-center mb-6">
         <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -201,7 +201,7 @@ const Report: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + (index * 0.1) }}
                 >
-                                <Card className={`h-full flex flex-col ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+                                <Card className={`h-full flex flex-col border ${darkMode ? 'bg-black border-white/20' : 'bg-white'}`}>
                                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
                                       {cat.title}

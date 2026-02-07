@@ -80,7 +80,7 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
   };
 
   return (
-    <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
       <div className="mb-6 flex items-center justify-between">
         <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{currentTitle}</h3>
         <Button
@@ -113,7 +113,7 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
               <CartesianGrid strokeDasharray="0" stroke="transparent" />
               <XAxis
                 dataKey="name"
-                stroke={darkMode ? '#9ca3af' : '#6b7280'}
+                stroke={darkMode ? '#a3a3a3' : '#737373'}
                 angle={-45}
                 textAnchor="end"
                 height={100}
@@ -121,16 +121,18 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
                 style={{ fontSize: '10px' }}
               />
               <YAxis
-                stroke={darkMode ? '#9ca3af' : '#6b7280'}
+                stroke={darkMode ? '#a3a3a3' : '#737373'}
                 style={{ fontSize: '12px' }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: darkMode ? '#1f2937' : '#fff',
+                  backgroundColor: darkMode ? '#0a0a0a' : '#fff',
                   border: 'none',
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  color: darkMode ? '#fff' : '#000',
                 }}
+                itemStyle={{ color: darkMode ? '#fff' : '#000' }}
                 cursor={{ fill: 'transparent' }}
               />
               <Bar

@@ -64,8 +64,8 @@ export interface SearchFilters {
   moNumbers: string;
   stage: string;
   vendor: string;
-  size: string;
-  sku: string;
+  selectedSizes: string[];
+  selectedSkus: string[];
   selectedStatuses: string[];
   selectedReasons: string[];
   dateRange: { from: Date | null; to: Date | null };
@@ -135,8 +135,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     moNumbers: '',
     stage: 'All',
     vendor: 'all',
-    size: 'all',
-    sku: 'all',
+    selectedSizes: [],
+    selectedSkus: [],
     selectedStatuses: [],
     selectedReasons: [],
     dateRange: { from: null, to: null },
@@ -270,6 +270,38 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     fetchData(filters);
   };
 
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      if (!document.fullscreenElement && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, [isFullScreen]);
+
+  useEffect(() => {
+    if (isFullScreen) {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+        });
+      }
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+    }
+  }, [isFullScreen]);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
   return (
     <DashboardContext.Provider
       value={{
@@ -296,7 +328,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         error,
       }}
     >
-      <div className={darkMode ? 'dark' : ''}>{children}</div>
+      {children}
     </DashboardContext.Provider>
   );
 };

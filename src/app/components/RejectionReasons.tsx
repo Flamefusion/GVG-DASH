@@ -7,7 +7,7 @@ export const RejectionReasons: React.FC = () => {
   const { darkMode } = useDashboard();
 
   return (
-    <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
       <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Reasons</h3>
       <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
         Rejection analysis is now integrated into the main report view.

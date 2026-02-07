@@ -67,7 +67,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Accepted vs. Rejected</h3>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
@@ -88,11 +88,19 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+                border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
+                borderRadius: '8px',
+                color: darkMode ? '#fff' : '#000'
+              }}
+              itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className={`rounded-2xl p-6 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Breakdown</h3>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
@@ -111,7 +119,15 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
                 <Cell key={`cell-${index}`} fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+                border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
+                borderRadius: '8px',
+                color: darkMode ? '#fff' : '#000'
+              }}
+              itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+            />
             <Legend />
           </PieChart>
         </ResponsiveContainer>

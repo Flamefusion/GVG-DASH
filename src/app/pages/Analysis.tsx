@@ -77,7 +77,7 @@ const Analysis: React.FC = () => {
   return (
     <div
       className={`min-h-screen p-8 transition-colors ${
-        darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'
+        darkMode ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'
       }`}
     >
       <DashboardFilters />

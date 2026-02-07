@@ -38,7 +38,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
   const isVendorDisabled = reportFilters.stage === 'FT';
 
   return (
-    <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+    <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
       <div className="flex items-center gap-2">
         <Filter className={darkMode ? 'text-white' : 'text-gray-700'} size={20} />
         <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-700'}`}>Filters:</span>
@@ -49,7 +49,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.from && "text-muted-foreground"}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {reportFilters.dateRange.from ? format(reportFilters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
@@ -69,7 +69,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}`}
+              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.to && "text-muted-foreground"}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {reportFilters.dateRange.to ? format(reportFilters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
@@ -87,29 +87,29 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
       </div>
 
       <Select value={reportFilters.stage} onValueChange={(stage) => setReportFilters({ ...reportFilters, stage })}>
-        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
+        <SelectTrigger className="w-40">
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
-        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+        <SelectContent>
           {reportStages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
         </SelectContent>
       </Select>
 
       <Select value={reportFilters.vendor} onValueChange={(vendor) => setReportFilters({ ...reportFilters, vendor })} disabled={isVendorDisabled}>
-        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
+        <SelectTrigger className="w-40">
           <SelectValue placeholder="Vendor" />
         </SelectTrigger>
-        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+        <SelectContent>
           <SelectItem value="all">All Vendors</SelectItem>
           {vendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
         </SelectContent>
       </Select>
 
       <Select value={reportFilters.reportType} onValueChange={(val: 'Daily' | 'Rejection') => setReportFilters({ ...reportFilters, reportType: val })}>
-        <SelectTrigger className={`w-40 ${darkMode ? 'dark:bg-gray-700 dark:text-white border-gray-600' : ''}`}>
+        <SelectTrigger className="w-40">
           <SelectValue placeholder="Report Type" />
         </SelectTrigger>
-        <SelectContent className={darkMode ? 'dark:bg-gray-700 dark:text-white' : ''}>
+        <SelectContent>
           <SelectItem value="Daily">Daily Report</SelectItem>
           <SelectItem value="Rejection">Rejection Report</SelectItem>
         </SelectContent>

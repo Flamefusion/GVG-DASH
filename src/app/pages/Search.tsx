@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
+import { Checkbox } from '@/app/components/ui/checkbox';
 import { cn } from '@/app/components/ui/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/components/ui/command";
 import { motion } from 'motion/react';
@@ -45,6 +46,8 @@ const Search: React.FC = () => {
   // Filter Popover States
   const [statusOpen, setStatusOpen] = useState(false);
   const [reasonOpen, setReasonOpen] = useState(false);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [skuOpen, setSkuOpen] = useState(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
 
@@ -96,8 +99,9 @@ const Search: React.FC = () => {
     if (searchFilters.moNumbers.trim()) params.append('mo_numbers', searchFilters.moNumbers.replace(/\n/g, ','));
     if (searchFilters.stage && searchFilters.stage !== 'All') params.append('stage', searchFilters.stage);
     if (searchFilters.vendor && searchFilters.vendor !== 'all') params.append('vendor', searchFilters.vendor);
-    if (searchFilters.size && searchFilters.size !== 'all') params.append('size', searchFilters.size);
-    if (searchFilters.sku && searchFilters.sku !== 'all') params.append('sku', searchFilters.sku);
+    
+    searchFilters.selectedSizes.forEach(s => params.append('size', s));
+    searchFilters.selectedSkus.forEach(s => params.append('sku', s));
     
     searchFilters.selectedStatuses.forEach(s => params.append('vqc_status', s));
     searchFilters.selectedReasons.forEach(r => params.append('rejection_reasons', r));
@@ -194,14 +198,32 @@ const Search: React.FC = () => {
     }));
   };
 
+  const toggleSize = (size: string) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      selectedSizes: prev.selectedSizes.includes(size) 
+        ? prev.selectedSizes.filter(s => s !== size) 
+        : [...prev.selectedSizes, size]
+    }));
+  };
+
+  const toggleSku = (sku: string) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      selectedSkus: prev.selectedSkus.includes(sku) 
+        ? prev.selectedSkus.filter(s => s !== sku) 
+        : [...prev.selectedSkus, sku]
+    }));
+  };
+
   const clearFilters = () => {
     setSearchFilters({
       serialNumbers: '',
       moNumbers: '',
       stage: 'All',
       vendor: 'all',
-      size: 'all',
-      sku: 'all',
+      selectedSizes: [],
+      selectedSkus: [],
       selectedStatuses: [],
       selectedReasons: [],
       dateRange: { from: null, to: null },
@@ -216,7 +238,7 @@ const Search: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen p-8 transition-colors ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}>
+    <div className={`min-h-screen p-8 transition-colors ${darkMode ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Header */}
@@ -244,10 +266,10 @@ const Search: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className={`overflow-hidden backdrop-blur-sm border shadow-lg ${darkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
-            <CardHeader className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+          <Card className={`overflow-hidden backdrop-blur-sm border shadow-lg ${darkMode ? 'bg-black/80 border-white/20' : 'bg-white/80 border-gray-200'}`}>
+            <CardHeader className="bg-gray-50/50 dark:bg-black border-b border-gray-100 dark:border-white/20">
               <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-blue-100'}`}>
                    <Filter className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 Filter Criteria
@@ -262,7 +284,7 @@ const Search: React.FC = () => {
                   placeholder="RNG001, RNG002..." 
                   value={searchFilters.serialNumbers}
                   onChange={(e) => setSearchFilters(prev => ({ ...prev, serialNumbers: e.target.value }))}
-                  className={`h-24 font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                  className="h-24 font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -273,7 +295,7 @@ const Search: React.FC = () => {
                   placeholder="MO123, MO456..." 
                   value={searchFilters.moNumbers}
                   onChange={(e) => setSearchFilters(prev => ({ ...prev, moNumbers: e.target.value }))}
-                  className={`h-24 font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                  className="h-24 font-mono text-sm resize-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -282,10 +304,10 @@ const Search: React.FC = () => {
                 <div className="space-y-2">
                   <Label className="font-semibold">Stage</Label>
                   <Select value={searchFilters.stage} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, stage: val }))}>
-                    <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Stage" />
                     </SelectTrigger>
-                    <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
+                    <SelectContent>
                       {['All', 'VQC', 'FT', 'CS', 'RT'].map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
@@ -296,10 +318,10 @@ const Search: React.FC = () => {
                 <div className="space-y-2">
                   <Label className="font-semibold">Vendor</Label>
                   <Select value={searchFilters.vendor} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, vendor: val }))}>
-                    <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Vendor" />
                     </SelectTrigger>
-                    <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
+                    <SelectContent>
                       <SelectItem value="all">All Vendors</SelectItem>
                       {vendorsList.filter(v => v && v.trim() !== '').map(v => (
                         <SelectItem key={v} value={v}>{v}</SelectItem>
@@ -310,33 +332,63 @@ const Search: React.FC = () => {
 
                 <div className="flex items-center gap-4">
                   <div className="flex-1 space-y-2">
-                    <Label className="font-semibold">Size</Label>
-                    <Select value={searchFilters.size} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, size: val }))}>
-                      <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
-                        <SelectValue placeholder="Select Size" />
-                      </SelectTrigger>
-                      <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
-                        <SelectItem value="all">All Sizes</SelectItem>
-                        {sizesList.filter(s => s && s.trim() !== '').map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="font-semibold">Size ({searchFilters.selectedSizes.length})</Label>
+                    <Popover open={sizeOpen} onOpenChange={setSizeOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-full justify-between">
+                          {searchFilters.selectedSizes.length > 0 ? `${searchFilters.selectedSizes.length} selected` : "Select Sizes"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search size..." />
+                          <CommandList>
+                            <CommandEmpty>No size found.</CommandEmpty>
+                            <CommandGroup>
+                              <ScrollArea className="h-48">
+                                {sizesList.filter(s => s && s.trim() !== '').map((size) => (
+                                  <CommandItem key={size} onSelect={() => toggleSize(size)} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox checked={searchFilters.selectedSizes.includes(size)} />
+                                    {size}
+                                  </CommandItem>
+                                ))}
+                              </ScrollArea>
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="flex-1 space-y-2">
-                    <Label className="font-semibold">SKU</Label>
-                    <Select value={searchFilters.sku} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, sku: val }))}>
-                      <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
-                        <SelectValue placeholder="Select SKU" />
-                      </SelectTrigger>
-                      <SelectContent className={darkMode ? 'bg-gray-700 text-white border-gray-600' : ''}>
-                        <SelectItem value="all">All SKUs</SelectItem>
-                        {skusList.filter(sku => sku && sku.trim() !== '').map(sku => (
-                          <SelectItem key={sku} value={sku}>{sku}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="font-semibold">SKU ({searchFilters.selectedSkus.length})</Label>
+                    <Popover open={skuOpen} onOpenChange={setSkuOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-full justify-between">
+                          {searchFilters.selectedSkus.length > 0 ? `${searchFilters.selectedSkus.length} selected` : "Select SKUs"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search SKU..." />
+                          <CommandList>
+                            <CommandEmpty>No SKU found.</CommandEmpty>
+                            <CommandGroup>
+                              <ScrollArea className="h-48">
+                                {skusList.filter(sku => sku && sku.trim() !== '').map((sku) => (
+                                  <CommandItem key={sku} onSelect={() => toggleSku(sku)} className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox checked={searchFilters.selectedSkus.includes(sku)} />
+                                    {sku}
+                                  </CommandItem>
+                                ))}
+                              </ScrollArea>
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               </div>
@@ -344,10 +396,10 @@ const Search: React.FC = () => {
               <div className="space-y-4">
                  {/* Status Multi-Select */}
                  <div className="space-y-2">
-                  <Label className="font-semibold">VQC Status ({searchFilters.selectedStatuses.length})</Label>
+                  <Label className="font-semibold">Ring Status ({searchFilters.selectedStatuses.length})</Label>
                   <Popover open={statusOpen} onOpenChange={setStatusOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={statusOpen} className={`w-full justify-between ${darkMode ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : ''}`}>
+                      <Button variant="outline" role="combobox" aria-expanded={statusOpen} className="w-full justify-between">
                         {searchFilters.selectedStatuses.length > 0 ? `${searchFilters.selectedStatuses.length} selected` : "Select Statuses"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -359,8 +411,8 @@ const Search: React.FC = () => {
                           <CommandEmpty>No status found.</CommandEmpty>
                           <CommandGroup>
                             {COMMON_STATUSES.map((status) => (
-                              <CommandItem key={status} onSelect={() => toggleStatus(status)}>
-                                <Check className={cn("mr-2 h-4 w-4", searchFilters.selectedStatuses.includes(status) ? "opacity-100" : "opacity-0")} />
+                              <CommandItem key={status} onSelect={() => toggleStatus(status)} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox checked={searchFilters.selectedStatuses.includes(status)} />
                                 {status}
                               </CommandItem>
                             ))}
@@ -376,7 +428,7 @@ const Search: React.FC = () => {
                   <Label className="font-semibold">Rejection Reasons ({searchFilters.selectedReasons.length})</Label>
                    <Popover open={reasonOpen} onOpenChange={setReasonOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={reasonOpen} className={`w-full justify-between ${darkMode ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : ''}`}>
+                      <Button variant="outline" role="combobox" aria-expanded={reasonOpen} className="w-full justify-between">
                         {searchFilters.selectedReasons.length > 0 ? `${searchFilters.selectedReasons.length} selected` : "Select Reasons"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -389,8 +441,8 @@ const Search: React.FC = () => {
                           <CommandGroup>
                             <ScrollArea className="h-72">
                               {COMMON_REASONS.map((reason) => (
-                                <CommandItem key={reason} onSelect={() => toggleReason(reason)}>
-                                  <Check className={cn("mr-2 h-4 w-4", searchFilters.selectedReasons.includes(reason) ? "opacity-100" : "opacity-0")} />
+                                <CommandItem key={reason} onSelect={() => toggleReason(reason)} className="flex items-center gap-2 cursor-pointer">
+                                  <Checkbox checked={searchFilters.selectedReasons.includes(reason)} />
                                   {reason}
                                 </CommandItem>
                               ))}
@@ -407,7 +459,7 @@ const Search: React.FC = () => {
                     <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date From</Label>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.from && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.from && "text-muted-foreground"}`}>
                             {searchFilters.dateRange.from ? format(searchFilters.dateRange.from, "yyyy-MM-dd") : <span>Pick a date</span>}
                           </Button>
                         </PopoverTrigger>
@@ -419,7 +471,7 @@ const Search: React.FC = () => {
                     <Label className="text-xs uppercase text-gray-500 font-bold tracking-wider">Date To</Label>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.to && "text-muted-foreground"} ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}>
+                          <Button variant={"outline"} className={`w-full justify-start text-left font-normal ${!searchFilters.dateRange.to && "text-muted-foreground"}`}>
                             {searchFilters.dateRange.to ? format(searchFilters.dateRange.to, "yyyy-MM-dd") : <span>Pick a date</span>}
                           </Button>
                         </PopoverTrigger>
@@ -475,8 +527,8 @@ const Search: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className={`overflow-hidden backdrop-blur-sm border shadow-lg ${darkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-gray-200'}`}>
-               <CardHeader className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700 flex flex-row items-center justify-between">
+            <Card className={`overflow-hidden backdrop-blur-sm border shadow-lg ${darkMode ? 'bg-black/80 border-white/20' : 'bg-white/80 border-gray-200'}`}>
+               <CardHeader className="bg-gray-50/50 dark:bg-black border-b border-gray-100 dark:border-white/20 flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     Results <Badge variant="secondary" className="ml-2 text-sm">{searchResults.totalRecords} Records</Badge>
                   </CardTitle>
@@ -487,8 +539,8 @@ const Search: React.FC = () => {
                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader className={darkMode ? 'bg-gray-800' : 'bg-gray-50'}>
-                        <TableRow className={darkMode ? 'border-gray-700 hover:bg-gray-700/50' : 'hover:bg-gray-100/50'}>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow className="border-border hover:bg-muted/50">
                           <TableHead className="w-[150px] font-bold">Serial Number</TableHead>
                           <TableHead className="font-bold">Vendor</TableHead>
                           <TableHead className="font-bold">Size</TableHead>
@@ -516,7 +568,7 @@ const Search: React.FC = () => {
                           </TableRow>
                         ) : (
                           searchResults.data.map((row, i) => (
-                            <TableRow key={i} className={`transition-colors ${darkMode ? 'border-gray-700 hover:bg-gray-700/50' : 'hover:bg-blue-50/30'}`}>
+                            <TableRow key={i} className="transition-colors border-border hover:bg-muted/50">
                               <TableCell className="font-medium font-mono text-blue-600 dark:text-blue-400">{row.serial_number}</TableCell>
                               <TableCell>{row.vendor}</TableCell>
                               <TableCell>{row.size}</TableCell>
@@ -543,7 +595,7 @@ const Search: React.FC = () => {
 
                   {/* Pagination */}
                   {searchResults.totalPages > 1 && (
-                    <div className="flex items-center justify-between px-6 py-4 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between px-6 py-4 bg-muted/50 border-t border-border">
                       <div className="text-sm text-gray-500">
                         Showing {(searchResults.currentPage - 1) * 100 + 1} to {Math.min(searchResults.currentPage * 100, searchResults.totalRecords)} of {searchResults.totalRecords} entries
                       </div>
