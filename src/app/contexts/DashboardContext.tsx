@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 
 export interface DashboardFilters {
   dateRange: { from: Date | null; to: Date | null };
-  size: string;
-  sku: string;
+  selectedSizes: string[];
+  selectedSkus: string[];
   stage: string;
 }
 
@@ -57,6 +57,8 @@ export interface ReportFilters {
   vendor: string;
   stage: string;
   reportType: 'Daily' | 'Rejection';
+  selectedSizes: string[];
+  selectedSkus: string[];
 }
 
 export interface SearchFilters {
@@ -120,8 +122,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: getMonthDateRange(),
-    size: 'all',
-    sku: 'all',
+    selectedSizes: [],
+    selectedSkus: [],
     stage: 'VQC',
   });
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
@@ -129,6 +131,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     vendor: 'all',
     stage: 'VQC',
     reportType: 'Daily',
+    selectedSizes: [],
+    selectedSkus: [],
   });
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     serialNumbers: '',
@@ -185,11 +189,11 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (currentFilters.dateRange.to) {
       params.append('end_date', formatDate(currentFilters.dateRange.to));
     }
-    if (currentFilters.size && currentFilters.size !== 'all') {
-      params.append('size', currentFilters.size);
+    if (currentFilters.selectedSizes && currentFilters.selectedSizes.length > 0) {
+      currentFilters.selectedSizes.forEach(s => params.append('size', s));
     }
-    if (currentFilters.sku && currentFilters.sku !== 'all') {
-      params.append('sku', currentFilters.sku);
+    if (currentFilters.selectedSkus && currentFilters.selectedSkus.length > 0) {
+      currentFilters.selectedSkus.forEach(s => params.append('sku', s));
     }
     if (currentFilters.stage) {
       params.append('stage', currentFilters.stage);
@@ -250,8 +254,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       const skusData = await skusResponse.json();
       const sizesData = await sizesResponse.json();
 
-      setSkus(['all', ...skusData.filter(s => s)]);
-      setSizes(['all', ...sizesData.filter(s => s)]);
+      setSkus(skusData.filter(s => s));
+      setSizes(sizesData.filter(s => s));
     } catch (err) {
       console.error("Failed to fetch filter options:", err);
       setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
@@ -264,7 +268,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   useEffect(() => {
     fetchData(filters);
-  }, [fetchData]);
+  }, []);
 
   const applyFilters = () => {
     fetchData(filters);

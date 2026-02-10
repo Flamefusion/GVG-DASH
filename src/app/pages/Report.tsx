@@ -53,6 +53,12 @@ const Report: React.FC = () => {
       if (reportFilters.dateRange.to) queryParams.append('end_date', format(reportFilters.dateRange.to, 'yyyy-MM-dd'));
       queryParams.append('stage', reportFilters.stage);
       queryParams.append('vendor', reportFilters.stage === 'FT' ? 'all' : reportFilters.vendor);
+      if (reportFilters.selectedSizes && reportFilters.selectedSizes.length > 0) {
+        reportFilters.selectedSizes.forEach(s => queryParams.append('size', s));
+      }
+      if (reportFilters.selectedSkus && reportFilters.selectedSkus.length > 0) {
+        reportFilters.selectedSkus.forEach(s => queryParams.append('sku', s));
+      }
 
       const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
       const response = await fetch(`${apiUrl}/report-data?${queryParams.toString()}`);

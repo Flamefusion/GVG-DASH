@@ -119,11 +119,11 @@ def read_root():
     return {"message": "GVG Dashboard Backend is running"}
 
 @app.get("/analysis")
-async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, stage: Optional[str] = None, date_column: str = 'vqc_inward_date'):
+async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), stage: Optional[str] = None, date_column: str = 'vqc_inward_date'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        analysis_data = get_analysis_data(client, TABLE, start_date, end_date, size, sku, date_column)
+        analysis_data = get_analysis_data(client, TABLE, start_date, end_date, sizes, skus, date_column)
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
@@ -133,12 +133,14 @@ async def get_report(
     start_date: Optional[date] = None, 
     end_date: Optional[date] = None, 
     stage: str = Query('VQC', description="Stage: VQC or FT"),
-    vendor: str = Query('all', description="Vendor name")
+    vendor: str = Query('all', description="Vendor name"),
+    sizes: Optional[List[str]] = Query(None, alias="size"),
+    skus: Optional[List[str]] = Query(None, alias="sku")
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        data = get_report_data(client, RING_STATUS_TABLE, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor)
+        data = get_report_data(client, RING_STATUS_TABLE, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
@@ -147,18 +149,20 @@ async def get_report(
 async def get_rejection_report(
     start_date: Optional[date] = None, 
     end_date: Optional[date] = None, 
-    vendor: str = Query('all', description="Vendor name")
+    vendor: str = Query('all', description="Vendor name"),
+    sizes: Optional[List[str]] = Query(None, alias="size"),
+    skus: Optional[List[str]] = Query(None, alias="sku")
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor)
+        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
 
 @app.get("/kpis")
-async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -166,7 +170,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     if stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
 
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
+    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column)
 
     if stage in ['RT', 'RT CS']:
         query = f"""
@@ -251,7 +255,7 @@ def combine_where_clauses(base_clause_str, base_params, additional_conditions):
     return "", base_params
 
 @app.get("/charts")
-async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -259,7 +263,7 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     if stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
 
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column)
 
     if stage in ['RT', 'RT CS']:
         vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["vqc_inward_date IS NOT NULL", "ft_inward_date IS NULL", "(vqc_status != 'SCRAP' OR vqc_status IS NULL)"])
@@ -396,7 +400,7 @@ async def get_last_updated():
 
 
 @app.get("/kpi-data/{kpi_name}")
-async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, download: bool = False, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), download: bool = False, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -437,7 +441,7 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     if kpi_name not in kpi_conditions:
         raise HTTPException(status_code=404, detail="KPI name not found")
 
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column)
     kpi_where_condition = kpi_conditions[kpi_name]
 
     if base_where_clause_str:
@@ -498,8 +502,8 @@ async def search_data(
     vqc_status: Optional[List[str]] = Query(None),
     rejection_reasons: Optional[List[str]] = Query(None),
     mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
-    size: Optional[str] = Query(None, description="Filter by size"),
-    sku: Optional[str] = Query(None, description="Filter by SKU"),
+    sizes: Optional[List[str]] = Query(None, alias="size"), # Changed to sizes (plural)
+    skus: Optional[List[str]] = Query(None, alias="sku"),   # Changed to skus (plural)
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     download: bool = False,
@@ -573,15 +577,15 @@ async def search_data(
                 """)
             query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
 
-    # 7. Size
-    if size and size.lower() != 'all':
-        conditions.append("size = @size")
-        query_parameters.append(ScalarQueryParameter("size", "STRING", size))
+    # 7. Sizes (Multi-select)
+    if sizes:
+        conditions.append("size IN UNNEST(@sizes_list)")
+        query_parameters.append(ArrayQueryParameter("sizes_list", "STRING", sizes))
 
-    # 8. SKU
-    if sku and sku.lower() != 'all':
-        conditions.append("sku = @sku")
-        query_parameters.append(ScalarQueryParameter("sku", "STRING", sku))
+    # 8. SKUs (Multi-select)
+    if skus:
+        conditions.append("sku IN UNNEST(@skus_list)")
+        query_parameters.append(ArrayQueryParameter("skus_list", "STRING", skus))
 
     # Construct WHERE clause
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""

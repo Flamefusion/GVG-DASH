@@ -1,6 +1,6 @@
 from google.cloud import bigquery
-from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig
-from typing import Optional
+from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig, ArrayQueryParameter
+from typing import Optional, List
 from datetime import date
 
 FIXED_REJECTION_ROWS = [
@@ -60,7 +60,7 @@ FIXED_REJECTION_ROWS = [
     ("SHELL", "WHITE MARKS ON SHELL")
 ]
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], size: Optional[str], sku: Optional[str], date_column: str = 'vqc_inward_date') -> tuple[str, list[ScalarQueryParameter]]:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date') -> tuple[str, list]:
     where_conditions = []
     query_parameters = []
 
@@ -69,19 +69,19 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
         query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
         query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
 
-    if size and size.lower() != 'all':
-        where_conditions.append("size = @size")
-        query_parameters.append(ScalarQueryParameter("size", "STRING", size))
+    if sizes:
+        where_conditions.append("size IN UNNEST(@sizes)")
+        query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
 
-    if sku and sku.lower() != 'all':
-        where_conditions.append("sku = @sku")
-        query_parameters.append(ScalarQueryParameter("sku", "STRING", sku))
+    if skus:
+        where_conditions.append("sku IN UNNEST(@skus)")
+        query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, size: Optional[str] = None, sku: Optional[str] = None, date_column: str = 'vqc_inward_date'):
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, size, sku, date_column)
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date'):
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column)
 
     # 1. KPIs
     kpi_query = f"""
@@ -246,7 +246,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         "ihcVendorRejections": execute_query(ihc_vendor_rejections_query, query_parameters),
     }
 
-def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str):
+def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None):
     
     where_conditions = []
     query_parameters = []
@@ -255,6 +255,14 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         where_conditions.append(f"date BETWEEN @report_start_date AND @report_end_date")
         query_parameters.append(ScalarQueryParameter("report_start_date", "DATE", str(start_date)))
         query_parameters.append(ScalarQueryParameter("report_end_date", "DATE", str(end_date)))
+    
+    if sizes:
+        where_conditions.append("size IN UNNEST(@sizes)")
+        query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
+
+    if skus:
+        where_conditions.append("sku IN UNNEST(@skus)")
+        query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
     where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
         
@@ -348,7 +356,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         "rejections": grouped_rejections
     }
 
-def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all'):
+def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None):
     where_conditions = []
     query_parameters = []
 
@@ -360,6 +368,14 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
     if vendor and vendor.lower() != 'all':
         where_conditions.append("vendor = @vendor")
         query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
+    
+    if sizes:
+        where_conditions.append("size IN UNNEST(@sizes)")
+        query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
+
+    if skus:
+        where_conditions.append("sku IN UNNEST(@skus)")
+        query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
     where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 
