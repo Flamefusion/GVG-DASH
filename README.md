@@ -67,7 +67,7 @@ This section details the logic behind how the key metrics on the dashboard are c
 
 #### Frontend Calculations
 
-*   **Yield Calculation:** On the Report page, the "YIELD" KPI is calculated using the formula: `(Total Accepted / Total Received) * 100`.
+*   **Yield Calculation:** On the Report page, the "YIELD" KPI is calculated using the formula: `(Total Accepted / (Total Accepted + Total Rejected)) * 100`. This excludes work-in-progress items from the calculation.
 *   **WIP Serial Number Count:** The "VQC WIP" and "FT WIP" counters on the Home page are calculated on the frontend by summing the `count` of all items in the chart data arrays received from the backend.
 
 #### Backend BigQuery Calculations

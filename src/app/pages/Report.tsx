@@ -77,7 +77,8 @@ const Report: React.FC = () => {
     fetchData();
   }, [reportFilters]);
 
-  const yieldValue = data.kpis.output > 0 ? Math.round((data.kpis.accepted / data.kpis.output) * 100) : 0;
+  const totalProcessed = data.kpis.accepted + data.kpis.rejected;
+  const yieldValue = totalProcessed > 0 ? Math.round((data.kpis.accepted / totalProcessed) * 100) : 0;
 
   const mainKpis = [
     {
