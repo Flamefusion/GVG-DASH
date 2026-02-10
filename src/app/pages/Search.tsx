@@ -71,7 +71,12 @@ const Search: React.FC = () => {
     // Fetch SKUs and Sizes based on stage
     const fetchFilterOptions = async () => {
       try {
-        const table = searchFilters.stage === 'RT' ? 'rt_conversion_data' : 'master_station_data';
+        let table = 'master_station_data';
+        if (searchFilters.stage === 'RT') {
+          table = 'rt_conversion_data';
+        } else if (searchFilters.stage === 'WABI SABI') {
+          table = 'wabi_sabi_data';
+        }
         const [skusRes, sizesRes] = await Promise.all([
           fetch(`${BACKEND_URL}/skus?table=${table}`),
           fetch(`${BACKEND_URL}/sizes?table=${table}`)
@@ -308,7 +313,7 @@ const Search: React.FC = () => {
                       <SelectValue placeholder="Select Stage" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['All', 'VQC', 'FT', 'CS', 'RT'].map(s => (
+                      {['All', 'VQC', 'FT', 'CS', 'RT', 'WABI SABI'].map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
@@ -317,7 +322,11 @@ const Search: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label className="font-semibold">Vendor</Label>
-                  <Select value={searchFilters.vendor} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, vendor: val }))}>
+                  <Select 
+                    value={searchFilters.vendor} 
+                    onValueChange={(val) => setSearchFilters(prev => ({ ...prev, vendor: val }))}
+                    disabled={searchFilters.stage === 'WABI SABI'}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Vendor" />
                     </SelectTrigger>

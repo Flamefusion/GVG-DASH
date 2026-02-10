@@ -150,6 +150,7 @@ export const DashboardFilters: React.FC = () => {
           <SelectItem value="CS">CS</SelectItem>
           <SelectItem value="RT">RT</SelectItem>
           <SelectItem value="RT CS">RT CS</SelectItem>
+          <SelectItem value="WABI SABI">WABI SABI</SelectItem>
         </SelectContent>
       </Select>
       

@@ -6,29 +6,32 @@ This project is a comprehensive, multi-page dashboard for monitoring and analyzi
 
 ## Pages
 
-The dashboard is organized into three main pages:
+The dashboard is organized into four main pages:
 
 *   **Home**: Provides a high-level overview of the FQC process, including key performance indicators (KPIs) and work-in-progress (WIP) tracking across different stages.
 *   **Analysis**: A dedicated page for in-depth rejection analysis. It features a variety of charts to visualize rejection data from different perspectives, such as by status, vendor, and rejection reason.
-*   **Report**: A page for generating and exporting reports. It provides a summary of key metrics and a detailed breakdown of rejections by category, which can be exported as a CSV file.
+*   **Report**: A page for generating and exporting reports. It provides a summary of key metrics and a detailed breakdown of rejections by category, with automated rejection trend analysis.
+*   **Search**: A powerful advanced search page for deep-diving into production data. It allows bulk searching by serial numbers or MO numbers and provides detailed record-level visibility.
 
 ## Features
 
 *   **Advanced Filtering**: The dashboard features a powerful filtering system that allows users to slice and dice the data. The key filters are:
-    *   **Stage**: The most important filter, which determines the data source and date field used for filtering. The available stages are:
+    *   **Stage**: Determines the data source and date field used for filtering. The available stages are:
         *   **VQC (Default)**: Uses `vqc inward date` and queries the `master_station_data` table.
         *   **FT**: Uses `ft inward date` and queries the `master_station_data` table.
         *   **CS**: Uses `cs complete date` and queries the `master_station_data` table.
         *   **RT**: Uses `vqc inward date` and queries the `rt_conversion_data` table.
         *   **RT CS**: Uses `cs_comp_date` and queries the `rt_conversion_data` table.
+        *   **WABI SABI**: Uses `inward_date` and queries the `wabi_sabi_data` table.
     *   **Date Range**: Allows users to select a custom date range.
-    *   **Size**: Filters the data by size.
-    *   **SKU**: Filters the data by SKU.
-*   **Interactive Charts**: The dashboard uses a variety of interactive charts to visualize the data, including bar charts, line charts, pie charts, and doughnut charts.
-*   **Data Export**: Users can export the data from KPI cards and the Report page as a CSV file.
+    *   **Size**: Multi-select filter for sizes.
+    *   **SKU**: Multi-select filter for SKUs.
+*   **Bulk Search**: On the Search page, users can input multiple serial numbers or MO numbers separated by commas or newlines for bulk lookup.
+*   **Interactive Charts**: The dashboard uses a variety of interactive charts (bar, line, pie, doughnut) including vendor-wise rejection percentages and top rejection reasons.
+*   **Data Export**: Users can export the data from KPI cards, the Report page, and Search results as CSV files.
 *   **Fullscreen Mode**: For an immersive, distraction-free experience.
-*   **Dark Mode**: A sleek dark mode for comfortable viewing in low-light environments.
-*   **"How to Use" Dialog**: A helpful guide for new users, explaining the intricacies of the filtering system.
+*   **Dark Mode**: A refined dark mode for comfortable viewing in low-light environments.
+*   **Admin System**: Optional admin system for extra access and management within the dashboard.
 *   **Last Data Sync Timestamp**: Shows the freshness of the data.
 
 ## Tech Stack
@@ -40,26 +43,27 @@ The dashboard is built with a modern and robust tech stack, ensuring a high-perf
 *   **Framework:** React with Vite for a fast and efficient development experience.
 *   **Language:** TypeScript for type safety and improved code quality.
 *   **UI Components:** A custom component library built with `shadcn/ui`, which leverages Radix UI for accessibility and Tailwind CSS for styling.
-*   **Routing:** `react-router-dom` is used for client-side routing, enabling the multi-page navigation between the Home, Analysis, and Report pages.
-*   **State Management:** The application's state, including filters and dashboard data, is managed globally using React's Context API, as seen in `DashboardContext.tsx`.
-*   **Charting Library:** `recharts` is used to create the interactive and visually appealing charts throughout the dashboard, including bar charts, line charts, pie charts, and doughnut charts.
-*   **Styling:** Tailwind CSS is the primary styling solution, providing a utility-first approach for rapid UI development. Additional custom styles are managed in `index.css` and `tailwind.css`.
-*   **Animation:** `framer-motion` is used to add smooth animations and transitions, enhancing the user experience.
+*   **Routing:** `react-router-dom` is used for client-side routing, enabling navigation between Home, Analysis, Report, and Search pages.
+*   **State Management:** Managed globally using React's Context API (`DashboardContext.tsx`).
+*   **Charting Library:** `recharts` for interactive data visualization.
+*   **Styling:** Tailwind CSS with support for dynamic Dark Mode.
+*   **Animation:** `framer-motion` (or `motion/react`) for smooth transitions.
 
 ### Backend & Infrastructure
 
-*   **Data Warehouse:** **Google BigQuery** is used as the central data warehouse, storing all the FQC data.
-*   **Backend Language:** **Python**, likely with a framework like FastAPI or Flask, to create the API that queries BigQuery.
-*   **Hosting:** The backend is deployed as a **Docker container** on **Google Cloud Run**. This provides a serverless, scalable, and fully managed environment for the backend service. When the frontend makes an API call, Cloud Run automatically scales up instances of the backend container to handle the request and scales down to zero when there is no traffic, optimizing costs.
+*   **Data Warehouse:** **Google BigQuery** storing all FQC production data.
+*   **Backend Language:** **Python** with **FastAPI** for a high-performance, asynchronous API.
+*   **Hosting:** Deployed as a **Docker container** on **Google Cloud Run** for serverless scaling.
 *   **API Endpoints:**
-    *   `/kpis`: Fetches Key Performance Indicators for the Home page.
-    *   `/charts`: Fetches data for the WIP charts on the Home page.
-    *   `/skus`: Fetches a list of available SKUs for the filter options.
-    *   `/sizes`: Fetches a list of available sizes for the filter options.
-    *   `/kpi-data/{kpiKey}`: Fetches detailed, paginated data for a specific KPI, displayed in the data modal.
-    *   `/report-data`: Fetches data for the Report page.
-    *   `/analysis-data`: Fetches data for the Analysis page.
-    *   `/last-updated`: Fetches the timestamp of the last data sync.
+    *   `/kpis`: Fetches Key Performance Indicators.
+    *   `/charts`: Fetches data for WIP charts and trends.
+    *   `/skus`, `/sizes`, `/vendors`: Fetches available filter options.
+    *   `/search`: Handles advanced bulk search and filtering.
+    *   `/analysis`: Fetches comprehensive rejection analysis data.
+    *   `/report-data`: Fetches daily report summaries.
+    *   `/rejection-report-data`: Fetches automated rejection trend reports.
+    *   `/kpi-data/{kpiKey}`: Fetches detailed, paginated data for KPI drill-downs.
+    *   `/last-updated`: Fetches the last data sync timestamp.
 
 ### Key Calculations
 

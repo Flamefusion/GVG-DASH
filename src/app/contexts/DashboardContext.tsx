@@ -202,11 +202,15 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         date_column = 'ft_inward_date';
       } else if (currentFilters.stage === 'CS' || currentFilters.stage === 'RT CS') {
         date_column = 'cs_comp_date';
+      } else if (currentFilters.stage === 'WABI SABI') {
+        date_column = 'inward_date';
       }
       params.append('date_column', date_column);
 
       if (currentFilters.stage === 'RT' || currentFilters.stage === 'RT CS') {
         params.append('table', 'rt_conversion_data');
+      } else if (currentFilters.stage === 'WABI SABI') {
+        params.append('table', 'wabi_sabi_data');
       }
     }
     const queryString = params.toString();
@@ -240,7 +244,12 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const fetchFilterOptions = useCallback(async () => {
     try {
-      const table = (filters.stage === 'RT' || filters.stage === 'RT CS') ? 'rt_conversion_data' : 'master_station_data';
+      let table = 'master_station_data';
+      if (filters.stage === 'RT' || filters.stage === 'RT CS') {
+        table = 'rt_conversion_data';
+      } else if (filters.stage === 'WABI SABI') {
+        table = 'wabi_sabi_data';
+      }
       const params = new URLSearchParams({ table });
       const queryString = params.toString();
 

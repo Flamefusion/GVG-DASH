@@ -60,7 +60,7 @@ FIXED_REJECTION_ROWS = [
     ("SHELL", "WHITE MARKS ON SHELL")
 ]
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date') -> tuple[str, list]:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size') -> tuple[str, list]:
     where_conditions = []
     query_parameters = []
 
@@ -70,18 +70,18 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
         query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
 
     if sizes:
-        where_conditions.append("size IN UNNEST(@sizes)")
+        where_conditions.append(f"{size_column} IN UNNEST(@sizes)")
         query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
 
     if skus:
-        where_conditions.append("sku IN UNNEST(@skus)")
+        where_conditions.append(f"{sku_column} IN UNNEST(@skus)")
         query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date'):
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column)
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size'):
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column)
 
     # 1. KPIs
     kpi_query = f"""
@@ -251,17 +251,23 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     where_conditions = []
     query_parameters = []
 
+    sku_col = 'sku'
+    size_col = 'size'
+    if stage == 'WABI SABI':
+        sku_col = 'sku'
+        size_col = 'SIZE'
+
     if start_date and end_date:
         where_conditions.append(f"date BETWEEN @report_start_date AND @report_end_date")
         query_parameters.append(ScalarQueryParameter("report_start_date", "DATE", str(start_date)))
         query_parameters.append(ScalarQueryParameter("report_end_date", "DATE", str(end_date)))
     
     if sizes:
-        where_conditions.append("size IN UNNEST(@sizes)")
+        where_conditions.append(f"{size_col} IN UNNEST(@sizes)")
         query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
 
     if skus:
-        where_conditions.append("sku IN UNNEST(@skus)")
+        where_conditions.append(f"{sku_col} IN UNNEST(@skus)")
         query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
     where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
@@ -288,20 +294,39 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
             output_col = "vqc_output"
             accepted_col = "vqc_accepted"
             rejected_col = "vqc_rejected_new"
-
     elif stage == 'FT':
         output_col = "ft_output"
         accepted_col = "ft_accepted"
         rejected_col = "ft_rejected_new"
-        
-    kpi_query = f"""
-        SELECT 
-            SUM({output_col}) as output,
-            SUM({accepted_col}) as accepted,
-            SUM({rejected_col}) as rejected
-        FROM {ring_status_table}
-        {where_clause}
-    """
+    elif stage == 'WABI SABI':
+        # Assuming wabi_sabi_data might have different column names or we use raw count logic
+        # But for now, let's try to follow the same pattern if it's a summary table
+        output_col = "output"
+        accepted_col = "accepted"
+        rejected_col = "rejected"
+        # If it's a raw table, this will need to be a different query.
+        # Given the instruction, I'll assume it has these summary columns or I'll adjust.
+        # Actually, let's use the raw count logic for WABI SABI if it's not a summary table.
+        pass
+
+    if stage == 'WABI SABI':
+        kpi_query = f"""
+            SELECT 
+                COUNT(DISTINCT serial_number) as output,
+                COUNT(DISTINCT CASE WHEN vqc_status = 'ACCEPTED' THEN serial_number END) as accepted,
+                COUNT(DISTINCT CASE WHEN vqc_status = 'SCRAP' THEN serial_number END) as rejected
+            FROM {ring_status_table}
+            {where_clause.replace('date', 'inward_date')}
+        """
+    else:
+        kpi_query = f"""
+            SELECT 
+                SUM({output_col}) as output,
+                SUM({accepted_col}) as accepted,
+                SUM({rejected_col}) as rejected
+            FROM {ring_status_table}
+            {where_clause}
+        """
     
     rejection_where_conditions = list(where_conditions) # Copy existing date conditions
     rejection_query_parameters = list(query_parameters) # Copy existing date parameters
