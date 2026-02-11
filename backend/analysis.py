@@ -83,15 +83,13 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
 def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size'):
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column)
 
+    # Determine if vendor column exists based on table/stage
+    has_vendor = "rt_conversion_data" not in table and "wabi_sabi_data" not in table
+
     # 1. KPIs
-    kpi_query = f"""
-    SELECT
-        COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS total_rejected,
+    vendor_kpi_part = ""
+    if has_vendor:
+        vendor_kpi_part = """
         COUNT(DISTINCT CASE
             WHEN vendor = '3DE TECH' AND (
                 (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
@@ -108,6 +106,19 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             ) THEN serial_number
             ELSE NULL
         END) AS ihc_rejection,
+        """
+    else:
+        vendor_kpi_part = "0 AS de_tech_rejection, 0 AS ihc_rejection,"
+
+    kpi_query = f"""
+    SELECT
+        COUNT(DISTINCT CASE
+            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
+            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
+            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
+            ELSE NULL
+        END) AS total_rejected,
+        {vendor_kpi_part}
         COUNT(DISTINCT CASE
             WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
             ELSE NULL
@@ -202,24 +213,29 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     """
 
     # 8. 3DE TECH Vendor Top 10 Rejection
-    de_tech_vendor_rejections_query = f"""
-    SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
-    FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND vqc_reason IS NOT NULL
-    GROUP BY vqc_reason
-    ORDER BY value DESC
-    LIMIT 10
-    """
+    if has_vendor:
+        de_tech_vendor_rejections_query = f"""
+        SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
+        FROM {table}
+        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND vqc_reason IS NOT NULL
+        GROUP BY vqc_reason
+        ORDER BY value DESC
+        LIMIT 10
+        """
 
-    # 9. IHC vendor top 10 Rejection
-    ihc_vendor_rejections_query = f"""
-    SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
-    FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND vqc_reason IS NOT NULL
-    GROUP BY vqc_reason
-    ORDER BY value DESC
-    LIMIT 10
-    """
+        # 9. IHC vendor top 10 Rejection
+        ihc_vendor_rejections_query = f"""
+        SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
+        FROM {table}
+        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND vqc_reason IS NOT NULL
+        GROUP BY vqc_reason
+        ORDER BY value DESC
+        LIMIT 10
+        """
+    else:
+        # For non-vendor tables, we can return overall top 10 VQC and FT rejections
+        de_tech_vendor_rejections_query = top_vqc_rejections_query
+        ihc_vendor_rejections_query = top_ft_rejections_query
 
     def execute_query(query, params=None):
         if params is None:

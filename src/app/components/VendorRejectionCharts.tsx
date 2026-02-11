@@ -21,9 +21,14 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f'
 
 export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ deTechData, ihcData }) => {
   const [chartView, setChartView] = useState<ChartView>('deTech');
-  const { darkMode } = useDashboard();
+  const { darkMode, filters } = useDashboard();
+
+  const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
+  const isWabiSabi = filters.stage === 'WABI SABI';
+  const isNonVendor = isRT || isWabiSabi;
 
   const combinedData = useMemo(() => {
+    if (isNonVendor) return [];
     const combined = new Map<string, number>();
     [...deTechData, ...ihcData].forEach(item => {
       combined.set(item.name, (combined.get(item.name) || 0) + item.value);
@@ -31,10 +36,13 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
     return Array.from(combined, ([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
-  }, [deTechData, ihcData]);
+  }, [deTechData, ihcData, isNonVendor]);
 
   const toggleChart = () => {
     setChartView(prevView => {
+      if (isNonVendor) {
+        return prevView === 'deTech' ? 'ihc' : 'deTech';
+      }
       if (prevView === 'deTech') return 'ihc';
       if (prevView === 'ihc') return 'combined';
       return 'deTech';
@@ -42,6 +50,21 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
   };
 
   const { currentData, currentTitle, nextView } = useMemo(() => {
+    if (isNonVendor) {
+      if (chartView === 'ihc') {
+        return { 
+          currentData: ihcData, 
+          currentTitle: 'Overall Top 10 FT Rejections', 
+          nextView: 'VQC Top 10' 
+        };
+      }
+      return { 
+        currentData: deTechData, 
+        currentTitle: 'Overall Top 10 VQC Rejections', 
+        nextView: 'FT Top 10' 
+      };
+    }
+
     switch (chartView) {
       case 'ihc':
         return { currentData: ihcData, currentTitle: 'IHC Vendor Top 10 Rejection', nextView: 'Combined' };
@@ -51,7 +74,7 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
       default:
         return { currentData: deTechData, currentTitle: '3DE Tech Vendor Top 10 Rejection', nextView: 'IHC Vendor' };
     }
-  }, [chartView, deTechData, ihcData, combinedData]);
+  }, [chartView, deTechData, ihcData, combinedData, isNonVendor]);
   
   const total = currentData.reduce((acc, curr) => acc + curr.value, 0);
 

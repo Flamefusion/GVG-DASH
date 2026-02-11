@@ -30,9 +30,12 @@ const renderBreakdownLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, perc
 
 
 export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ acceptedVsRejected, rejectionBreakdown }) => {
-  const { darkMode } = useDashboard();
+  const { darkMode, filters } = useDashboard();
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#3b82f6'];
   const BREAKDOWN_COLORS = ['#f59e0b', '#8b5cf6', '#06b6d4'];
+  
+  const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
+
   const renderAcceptedVsRejectedLabel = ({ cx, cy, midAngle, outerRadius, percent, value, name, innerRadius, fill }) => {
     const RADIAN = Math.PI / 180;
     const sin = Math.sin(-RADIAN * midAngle);
@@ -66,7 +69,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
 
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className={`grid gap-6 ${isRT ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
       <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Accepted vs. Rejected</h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -100,38 +103,40 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
-        <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Breakdown</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={rejectionBreakdown}
-              cx="50%"
-              cy="50%"
-              outerRadius={130}
-              fill="#8884d8"
-              dataKey="value"
-              nameKey="name"
-              labelLine={false}
-              label={renderBreakdownLabel}
-            >
-              {rejectionBreakdown.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip 
-              contentStyle={{
-                backgroundColor: darkMode ? '#0a0a0a' : '#fff',
-                border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
-                borderRadius: '8px',
-                color: darkMode ? '#fff' : '#000'
-              }}
-              itemStyle={{ color: darkMode ? '#fff' : '#000' }}
-            />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      {!isRT && (
+        <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
+          <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Breakdown</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={rejectionBreakdown}
+                cx="50%"
+                cy="50%"
+                outerRadius={130}
+                fill="#8884d8"
+                dataKey="value"
+                nameKey="name"
+                labelLine={false}
+                label={renderBreakdownLabel}
+              >
+                {rejectionBreakdown.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+                  border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
+                  borderRadius: '8px',
+                  color: darkMode ? '#fff' : '#000'
+                }}
+                itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 };

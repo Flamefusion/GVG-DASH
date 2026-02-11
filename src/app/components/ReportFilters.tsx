@@ -12,7 +12,7 @@ import { Checkbox } from '@/app/components/ui/checkbox';
 
 interface ReportFiltersProps {}
 
-const reportStages = ['VQC', 'FT', 'WABI SABI'];
+const reportStages = ['VQC', 'FT', 'RT', 'RT CS', 'WABI SABI'];
 
 export const ReportFilters: React.FC<ReportFiltersProps> = () => {
   const { darkMode, reportFilters, setReportFilters, skus, sizes } = useDashboard();
@@ -58,7 +58,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
     }));
   };
 
-  const isVendorDisabled = reportFilters.stage === 'FT' || reportFilters.stage === 'WABI SABI';
+  const isVendorDisabled = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(reportFilters.stage);
 
   return (
     <div className={`mb-6 flex flex-wrap items-center gap-4 rounded-2xl p-4 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>

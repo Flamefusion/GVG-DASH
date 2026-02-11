@@ -18,7 +18,7 @@ import { VendorRejectionCharts } from '@/app/components/VendorRejectionCharts';
 import { Skeleton } from '@/app/components/ui/skeleton';
 
 const Analysis: React.FC = () => {
-  const { darkMode, analysisData, loading, error } = useDashboard();
+  const { darkMode, analysisData, loading, error, filters } = useDashboard();
 
   if (loading) {
     return (
@@ -35,44 +35,55 @@ const Analysis: React.FC = () => {
   if (error) return <div className="p-8 text-red-500">{error}</div>;
   if (!analysisData) return <div className="p-8">No analysis data available.</div>;
 
+  const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
+  const isWabiSabi = filters.stage === 'WABI SABI';
+
   const kpiCards = [
     {
       title: 'TOTAL REJECTION',
-      value: analysisData.kpis.total_rejected.toLocaleString(),
+      value: (analysisData.kpis.total_rejected ?? 0).toLocaleString(),
       icon: XCircle,
       color: '#ef4444',
+      show: true,
     },
     {
       title: '3DE TECH REJECTION',
-      value: analysisData.kpis.de_tech_rejection.toLocaleString(),
+      value: (analysisData.kpis.de_tech_rejection ?? 0).toLocaleString(),
       icon: Package,
       color: '#f59e0b',
+      show: !isRT && !isWabiSabi,
     },
     {
       title: 'IHC REJECTION',
-      value: analysisData.kpis.ihc_rejection.toLocaleString(),
+      value: (analysisData.kpis.ihc_rejection ?? 0).toLocaleString(),
       icon: FlaskConical,
       color: '#8b5cf6',
+      show: !isRT && !isWabiSabi,
     },
     {
       title: 'VQC REJECTION',
-      value: analysisData.kpis.vqc_rejection.toLocaleString(),
+      value: (analysisData.kpis.vqc_rejection ?? 0).toLocaleString(),
       icon: CheckCircle,
       color: '#10b981',
+      show: true,
     },
     {
       title: 'FT REJECTION',
-      value: analysisData.kpis.ft_rejection.toLocaleString(),
+      value: (analysisData.kpis.ft_rejection ?? 0).toLocaleString(),
       icon: Clock,
       color: '#06b6d4',
+      show: true,
     },
     {
       title: 'CS REJECTION',
-      value: analysisData.kpis.cs_rejection.toLocaleString(),
+      value: (analysisData.kpis.cs_rejection ?? 0).toLocaleString(),
       icon: Archive,
       color: '#3b82f6',
+      show: true,
     },
   ];
+
+  const visibleKpiCards = kpiCards.filter(card => card.show);
 
   return (
     <div
@@ -82,8 +93,11 @@ const Analysis: React.FC = () => {
     >
       <DashboardFilters />
 
-      <div className="grid grid-cols-6 gap-4 mb-8">
-        {kpiCards.map((card, index) => (
+      <div className={`grid gap-4 mb-8 ${
+        visibleKpiCards.length === 6 ? 'grid-cols-6' : 
+        visibleKpiCards.length === 4 ? 'grid-cols-4' : 'grid-cols-4'
+      }`}>
+        {visibleKpiCards.map((card, index) => (
           <motion.div
             key={card.title}
             initial={{ opacity: 0, y: 20 }}
@@ -125,18 +139,20 @@ const Analysis: React.FC = () => {
         />
       </motion.div>
 
-      <motion.div
-        className="mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-      >
-        <TopRejectionsCharts 
-          topVqcRejections={analysisData.topVqcRejections}
-          topFtRejections={analysisData.topFtRejections}
-          topCsRejections={analysisData.topCsRejections}
-        />
-      </motion.div>
+      {!isRT && (
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+        >
+          <TopRejectionsCharts 
+            topVqcRejections={analysisData.topVqcRejections}
+            topFtRejections={analysisData.topFtRejections}
+            topCsRejections={analysisData.topCsRejections}
+          />
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

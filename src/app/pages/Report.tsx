@@ -51,8 +51,9 @@ const Report: React.FC = () => {
       const queryParams = new URLSearchParams();
       if (reportFilters.dateRange.from) queryParams.append('start_date', format(reportFilters.dateRange.from, 'yyyy-MM-dd'));
       if (reportFilters.dateRange.to) queryParams.append('end_date', format(reportFilters.dateRange.to, 'yyyy-MM-dd'));
+      const isNonVendorStage = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(reportFilters.stage);
       queryParams.append('stage', reportFilters.stage);
-      queryParams.append('vendor', reportFilters.stage === 'FT' ? 'all' : reportFilters.vendor);
+      queryParams.append('vendor', isNonVendorStage ? 'all' : reportFilters.vendor);
       if (reportFilters.selectedSizes && reportFilters.selectedSizes.length > 0) {
         reportFilters.selectedSizes.forEach(s => queryParams.append('size', s));
       }
