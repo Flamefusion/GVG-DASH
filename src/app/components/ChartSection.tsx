@@ -7,9 +7,11 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 
 export const ChartSection: React.FC = () => {
   const [showVQC, setShowVQC] = useState(true);
-  const { vqcWipChart, ftWipChart, loading, error, darkMode } = useDashboard();
+  const { vqcWipChart, ftWipChart, loading, error, darkMode, filters } = useDashboard();
   const vqcWipCount = vqcWipChart.reduce((acc, cur) => acc + cur.count, 0);
   const ftWipCount = ftWipChart.reduce((acc, cur) => acc + cur.count, 0);
+
+  const isWabiSabi = filters.stage === 'WABI SABI';
 
   if (loading) {
     return (
@@ -27,9 +29,9 @@ export const ChartSection: React.FC = () => {
     );
   }
 
-  const currentData = showVQC ? vqcWipChart : ftWipChart;
-  const currentTitle = showVQC ? 'VQC WIP SKU WISE' : 'FT WIP SKU WISE';
-  const barColor = showVQC ? '#f59e0b' : '#10b981';
+  const currentData = isWabiSabi ? vqcWipChart : (showVQC ? vqcWipChart : ftWipChart);
+  const currentTitle = isWabiSabi ? 'WABI SABI WIP SKU WISE' : (showVQC ? 'VQC WIP SKU WISE' : 'FT WIP SKU WISE');
+  const barColor = isWabiSabi ? '#8b5cf6' : (showVQC ? '#f59e0b' : '#10b981');
 
   const toggleChart = () => {
     setShowVQC(!showVQC);
@@ -48,42 +50,51 @@ export const ChartSection: React.FC = () => {
     <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
       <div className="mb-6 flex items-center justify-between">
         <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{currentTitle}</h3>
-        <Button
-          onClick={toggleChart}
-          variant="outline"
-          className="flex items-center gap-2"
-          style={{
-            background: darkMode
-              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-          }}
-        >
-          <ChevronLeft size={16} />
-          Toggle to {showVQC ? 'FT WIP' : 'VQC WIP'}
-          <ChevronRight size={16} />
-        </Button>
+        {!isWabiSabi && (
+          <Button
+            onClick={toggleChart}
+            variant="outline"
+            className="flex items-center gap-2"
+            style={{
+              background: darkMode
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+            }}
+          >
+            <ChevronLeft size={16} />
+            Toggle to {showVQC ? 'FT WIP' : 'VQC WIP'}
+            <ChevronRight size={16} />
+          </Button>
+        )}
       </div>
       <div className="flex justify-center gap-4 mb-4">
-        {showVQC ? (
+        {isWabiSabi ? (
           <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP</p>
+            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>WABI SABI WIP</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
           </div>
         ) : (
-          <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-            <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP</p>
-            <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
-          </div>
+          showVQC ? (
+            <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>VQC WIP</p>
+              <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{vqcWipCount}</p>
+            </div>
+          ) : (
+            <div className={`p-4 rounded-lg shadow-md ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>FT WIP</p>
+              <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ftWipCount}</p>
+            </div>
+          )
         )}
       </div>
       <AnimatePresence mode="wait">
         <motion.div
-          key={showVQC ? 'vqc' : 'ft'}
-          initial={{ opacity: 0, x: showVQC ? -50 : 50 }}
+          key={isWabiSabi ? 'wabi' : (showVQC ? 'vqc' : 'ft')}
+          initial={{ opacity: 0, x: (isWabiSabi || showVQC) ? -50 : 50 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: showVQC ? 50 : -50 }}
+          exit={{ opacity: 0, x: (isWabiSabi || showVQC) ? 50 : -50 }}
           transition={{ duration: 0.5 }}
         >
           <ResponsiveContainer width="100%" height={350}>

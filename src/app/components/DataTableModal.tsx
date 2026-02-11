@@ -61,8 +61,13 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
 
     if (filters.dateRange.from) params.append('start_date', formatDate(filters.dateRange.from));
     if (filters.dateRange.to) params.append('end_date', formatDate(filters.dateRange.to));
-    if (filters.size && filters.size !== 'all') params.append('size', filters.size);
-    if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
+    
+    if (filters.selectedSizes && filters.selectedSizes.length > 0) {
+      filters.selectedSizes.forEach(s => params.append('size', s));
+    }
+    if (filters.selectedSkus && filters.selectedSkus.length > 0) {
+      filters.selectedSkus.forEach(s => params.append('sku', s));
+    }
 
     if (filters.stage) {
       params.append('stage', filters.stage);
@@ -71,11 +76,15 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
         date_column = 'ft_inward_date';
       } else if (filters.stage === 'CS' || filters.stage === 'RT CS') {
         date_column = 'cs_comp_date';
+      } else if (filters.stage === 'WABI SABI') {
+        date_column = 'inward_date';
       }
       params.append('date_column', date_column);
 
       if (filters.stage === 'RT' || filters.stage === 'RT CS') {
         params.append('table', 'rt_conversion_data');
+      } else if (filters.stage === 'WABI SABI') {
+        params.append('table', 'wabi_sabi_data');
       }
     }
 
@@ -106,8 +115,13 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
     const params = new URLSearchParams();
     if (filters.dateRange.from) params.append('start_date', formatDate(filters.dateRange.from));
     if (filters.dateRange.to) params.append('end_date', formatDate(filters.dateRange.to));
-    if (filters.size && filters.size !== 'all') params.append('size', filters.size);
-    if (filters.sku && filters.sku !== 'all') params.append('sku', filters.sku);
+    
+    if (filters.selectedSizes && filters.selectedSizes.length > 0) {
+      filters.selectedSizes.forEach(s => params.append('size', s));
+    }
+    if (filters.selectedSkus && filters.selectedSkus.length > 0) {
+      filters.selectedSkus.forEach(s => params.append('sku', s));
+    }
     params.append('download', 'true');
 
     if (filters.stage) {
@@ -117,11 +131,15 @@ export const DataTableModal: React.FC<DataTableModalProps> = ({ open, onClose, t
         date_column = 'ft_inward_date';
       } else if (filters.stage === 'CS' || filters.stage === 'RT CS') {
         date_column = 'cs_comp_date';
+      } else if (filters.stage === 'WABI SABI') {
+        date_column = 'inward_date';
       }
       params.append('date_column', date_column);
 
       if (filters.stage === 'RT' || filters.stage === 'RT CS') {
         params.append('table', 'rt_conversion_data');
+      } else if (filters.stage === 'WABI SABI') {
+        params.append('table', 'wabi_sabi_data');
       }
     }
 

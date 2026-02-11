@@ -134,7 +134,7 @@ async def get_analysis(start_date: Optional[date] = None, end_date: Optional[dat
     if stage == 'WABI SABI':
         table_to_use = WABI_SABI_TABLE
         sku_col = 'sku'
-        size_col = 'SIZE'
+        size_col = 'size'
         date_col = 'inward_date'
     elif stage == 'RT':
         table_to_use = RT_CONVERSION_TABLE
@@ -159,7 +159,7 @@ async def get_report(
     
     table_to_use = RING_STATUS_TABLE
     if stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
+        table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.wabi_sabi_status`"
 
     try:
         data = get_report_data(client, table_to_use, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus)
@@ -196,7 +196,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     if stage == 'WABI SABI':
         table_to_use = WABI_SABI_TABLE
         sku_col = 'sku'
-        size_col = 'SIZE'
+        size_col = 'size'
         date_col = 'inward_date'
     elif stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
@@ -208,9 +208,9 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
         WITH KpiMetrics AS (
             SELECT
                 COUNT(DISTINCT serial_number) AS total_inward,
-                COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
-                COUNT(DISTINCT CASE WHEN ft_status = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
-                COUNT(DISTINCT CASE WHEN cs_status = 'REJECTED' THEN serial_number END) AS total_rejected,
+                COUNT(DISTINCT CASE WHEN ws_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
+                COUNT(DISTINCT CASE WHEN ws_status = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
+                COUNT(DISTINCT CASE WHEN ws_status = 'REJECTED' OR cs_status = 'REJECTED' THEN serial_number END) AS total_rejected,
                 COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory
             FROM {table_to_use}
             {where_clause_str}
@@ -319,7 +319,7 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     if stage == 'WABI SABI':
         table_to_use = WABI_SABI_TABLE
         sku_col = 'sku'
-        size_col = 'SIZE'
+        size_col = 'size'
         date_col = 'inward_date'
     elif stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
@@ -330,9 +330,8 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
         vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, [f"{date_col} IS NOT NULL", "ft_inward_date IS NULL", "(vqc_status != 'SCRAP' OR vqc_status IS NULL)"])
         ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "(ft_status != 'REJECTED' OR ft_status IS NULL)", "(cs_status != 'REJECTED' OR cs_status IS NULL)"])
     elif stage == 'WABI SABI':
-        # Custom logic for WABI SABI WIP if needed, but for now using base
-        vqc_wip_where_clause_str = base_where_clause_str
-        ft_wip_where_clause_str = "WHERE 1=0" # No FT WIP for WABI SABI?
+        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["cs_status IS NULL", "ws_status IS NULL"])
+        ft_wip_where_clause_str = "WHERE 1=0"
     else:
         vqc_wip_conditions = [
             "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
@@ -402,7 +401,7 @@ async def get_skus(table: str = 'master_station_data'):
         raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
     
     table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
-    sku_col = 'sku' if table == settings.WABI_SABI_TABLE_ID else 'sku'
+    sku_col = 'sku'
     
     query = f"SELECT DISTINCT {sku_col} as sku FROM {table_to_use} WHERE {sku_col} IS NOT NULL ORDER BY sku"
     try:
@@ -429,7 +428,7 @@ async def get_sizes(table: str = 'master_station_data'):
         raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
 
     table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
-    size_col = 'SIZE' if table == settings.WABI_SABI_TABLE_ID else 'size'
+    size_col = 'size'
 
     query = f"SELECT DISTINCT {size_col} as size FROM {table_to_use} WHERE {size_col} IS NOT NULL ORDER BY size"
     try:
@@ -481,7 +480,7 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     if stage == 'WABI SABI':
         table_to_use = WABI_SABI_TABLE
         sku_col = 'sku'
-        size_col = 'SIZE'
+        size_col = 'size'
         date_col = 'inward_date'
     elif stage in ['RT', 'RT CS']:
         table_to_use = RT_CONVERSION_TABLE
@@ -489,11 +488,11 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     if stage == 'WABI SABI':
         kpi_conditions = {
             'total_inward': f"{date_col} IS NOT NULL",
-            'qc_accepted': "cs_status = 'ACCEPTED'", # Using cs_status as vqc_status is missing
-            'testing_accepted': "ft_status = 'ACCEPTED'",
-            'total_rejected': "cs_status = 'REJECTED'",
+            'qc_accepted': "ws_status = 'ACCEPTED'",
+            'testing_accepted': "ws_status = 'ACCEPTED'",
+            'total_rejected': "ws_status = 'REJECTED' OR cs_status = 'REJECTED'",
             'moved_to_inventory': "cs_status = 'ACCEPTED'",
-            'work_in_progress': "1=0"
+            'work_in_progress': "cs_status IS NULL AND ws_status IS NULL"
         }
     elif stage in ['RT', 'RT CS']:
         kpi_conditions = {
@@ -512,6 +511,25 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
                 (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
                 (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
                 serial_number IS NOT NULL
+            """
+        }
+    else:
+        kpi_conditions = {
+            'total_inward': "serial_number IS NOT NULL",
+            'qc_accepted': "vqc_status = 'ACCEPTED'",
+            'testing_accepted': "UPPER(ft_status) = 'ACCEPTED'",
+            'total_rejected': """
+                UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR
+                UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+                UPPER(cs_status) = 'REJECTED'
+            """,
+            'moved_to_inventory': "cs_status = 'ACCEPTED'",
+            'work_in_progress': """
+                (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
+                (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
+                (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
+                (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
+                vqc_inward_date IS NOT NULL
             """
         }
 
@@ -583,8 +601,8 @@ async def search_data(
     vqc_status: Optional[List[str]] = Query(None),
     rejection_reasons: Optional[List[str]] = Query(None),
     mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
-    sizes: Optional[List[str]] = Query(None, alias="size"), # Changed to sizes (plural)
-    skus: Optional[List[str]] = Query(None, alias="sku"),   # Changed to skus (plural)
+    sizes: Optional[List[str]] = Query(None, alias="size"),
+    skus: Optional[List[str]] = Query(None, alias="sku"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     download: bool = False,
@@ -609,7 +627,7 @@ async def search_data(
         table_to_use = WABI_SABI_TABLE
         date_column = 'inward_date'
         sku_column = 'sku'
-        size_column = 'SIZE'
+        size_column = 'size'
     # 'VQC' and 'All' use default date_column 'vqc_inward_date' and default TABLE
 
     conditions = []
@@ -636,17 +654,23 @@ async def search_data(
 
     # 4. VQC Status (Multi-select)
     if vqc_status:
-        conditions.append("vqc_status IN UNNEST(@vqc_status_list)")
+        vqc_col = "ws_status" if stage == "WABI SABI" else "vqc_status"
+        conditions.append(f"{vqc_col} IN UNNEST(@vqc_status_list)")
         query_parameters.append(ArrayQueryParameter("vqc_status_list", "STRING", vqc_status))
 
     # 5. Rejection Reason (Multi-select across columns)
     if rejection_reasons:
-        # Logic: (vqc_reason IN list OR ft_reason IN list OR cs_reason IN list)
-        conditions.append(f"""
-            (vqc_reason IN UNNEST(@rejection_reasons) OR 
-             ft_reason IN UNNEST(@rejection_reasons) OR 
-             cs_reason IN UNNEST(@rejection_reasons))
-        """)
+        if stage == "WABI SABI":
+            conditions.append(f"""
+                (ws_reason IN UNNEST(@rejection_reasons) OR 
+                 cs_reason IN UNNEST(@rejection_reasons))
+            """)
+        else:
+            conditions.append(f"""
+                (vqc_reason IN UNNEST(@rejection_reasons) OR 
+                 ft_reason IN UNNEST(@rejection_reasons) OR 
+                 cs_reason IN UNNEST(@rejection_reasons))
+            """)
         query_parameters.append(ArrayQueryParameter("rejection_reasons", "STRING", rejection_reasons))
 
     # 6. MO Number (Bulk Search)
@@ -654,12 +678,14 @@ async def search_data(
         mo_list = [mo.strip() for mo in mo_numbers.split(',') if mo.strip()]
         if mo_list:
             if stage == 'RT':
-                # For RT: ctpf_po OR air_mo
                 conditions.append("""
                     (ctpf_po IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
                 """)
+            elif stage == 'WABI SABI':
+                conditions.append("""
+                    mo_nmber IN UNNEST(@mo_list)
+                """)
             else:
-                # For others: ctpf_mo OR air_mo
                 conditions.append("""
                     (ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
                 """)

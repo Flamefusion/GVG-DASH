@@ -81,24 +81,29 @@ const Report: React.FC = () => {
   const totalProcessed = data.kpis.accepted + data.kpis.rejected;
   const yieldValue = totalProcessed > 0 ? Math.round((data.kpis.accepted / totalProcessed) * 100) : 0;
 
+  const isWabiSabi = reportFilters.stage === 'WABI SABI';
+
   const mainKpis = [
     {
       title: 'OUTPUT',
       value: data.kpis.output,
       icon: Package,
       color: '#3b82f6',
+      show: true,
     },
     {
       title: 'ACCEPTED',
       value: data.kpis.accepted,
       icon: CheckCircle,
       color: '#10b981',
+      show: true,
     },
     {
       title: 'REJECTED',
       value: data.kpis.rejected,
       icon: XCircle,
       color: '#ef4444',
+      show: true,
     },
     {
       title: 'YIELD',
@@ -106,8 +111,11 @@ const Report: React.FC = () => {
       suffix: '%',
       icon: TrendingUp,
       color: '#8b5cf6',
+      show: true,
     },
   ];
+
+  const visibleKpis = mainKpis.filter(kpi => kpi.show);
 
   const rejectionCategories = [
     { key: 'ASSEMBLY', title: 'ASSEMBLY', icon: Layers, color: '#f59e0b' },
@@ -174,8 +182,8 @@ const Report: React.FC = () => {
       ) : (
         <>
           {/* Main KPIs - Compact */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {mainKpis.map((card, index) => (
+          <div className={`grid gap-4 mb-8 ${visibleKpis.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            {visibleKpis.map((card, index) => (
               <motion.div
                 key={card.title}
                 initial={{ opacity: 0, y: 20 }}

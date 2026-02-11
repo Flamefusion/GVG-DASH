@@ -83,16 +83,21 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
 def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size'):
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column)
 
-    # Determine if vendor column exists based on table/stage
-    has_vendor = "rt_conversion_data" not in table and "wabi_sabi_data" not in table
+    # Determine table properties
+    is_wabi_sabi = "wabi_sabi_data" in table
+    has_vendor = "rt_conversion_data" not in table and not is_wabi_sabi
+    has_ft = not is_wabi_sabi
 
+    vqc_status_col = "ws_status" if is_wabi_sabi else "vqc_status"
+    vqc_reason_col = "ws_reason" if is_wabi_sabi else "vqc_reason"
+    
     # 1. KPIs
     vendor_kpi_part = ""
     if has_vendor:
-        vendor_kpi_part = """
+        vendor_kpi_part = f"""
         COUNT(DISTINCT CASE
             WHEN vendor = '3DE TECH' AND (
-                (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
+                (UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL) OR
                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
                 (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
             ) THEN serial_number
@@ -100,7 +105,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         END) AS de_tech_rejection,
         COUNT(DISTINCT CASE
             WHEN vendor = 'IHC' AND (
-                (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
+                (UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL) OR
                 (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
                 (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
             ) THEN serial_number
@@ -110,23 +115,22 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     else:
         vendor_kpi_part = "0 AS de_tech_rejection, 0 AS ihc_rejection,"
 
+    ft_rejection_part = "COUNT(DISTINCT CASE WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number ELSE NULL END) AS ft_rejection," if has_ft else "0 AS ft_rejection,"
+
     kpi_query = f"""
     SELECT
         COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
+            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
+            { "WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number" if has_ft else "" }
             WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
             ELSE NULL
         END) AS total_rejected,
         {vendor_kpi_part}
         COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
+            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
             ELSE NULL
         END) AS vqc_rejection,
-        COUNT(DISTINCT CASE
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS ft_rejection,
+        {ft_rejection_part}
         COUNT(DISTINCT CASE
             WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
             ELSE NULL
@@ -141,10 +145,10 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         SELECT
             CASE
                 WHEN UPPER(cs_status) = 'ACCEPTED' THEN 'Accepted'
-                WHEN UPPER(vqc_status) = 'RT CONVERSION' THEN 'RT Conversion'
-                WHEN UPPER(vqc_status) = 'WABI SABI' THEN 'Wabi Sabi'
-                WHEN UPPER(vqc_status) = 'SCRAP' THEN 'Scrap'
-                WHEN UPPER(ft_status) = 'FUNCTIONAL REJECTION' THEN 'Scrap'
+                WHEN UPPER({vqc_status_col}) = 'RT CONVERSION' THEN 'RT Conversion'
+                WHEN UPPER({vqc_status_col}) = 'WABI SABI' THEN 'Wabi Sabi'
+                WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'REJECTED') THEN 'Scrap'
+                { "WHEN UPPER(ft_status) = 'FUNCTIONAL REJECTION' THEN 'Scrap'" if has_ft else "" }
                 WHEN UPPER(cs_status) = 'REJECTED' THEN 'Scrap'
                 ELSE 'Other'
             END AS name,
@@ -160,10 +164,10 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
 
     # 3. Rejection Breakdown chart
     rejection_breakdown_query = f"""
-    SELECT vqc_status AS name, COUNT(DISTINCT serial_number) AS value
+    SELECT {vqc_status_col} AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}UPPER(vqc_status) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')
-    GROUP BY vqc_status
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}UPPER({vqc_status_col}) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP', 'REJECTED')
+    GROUP BY {vqc_status_col}
     """
 
     # 4. Rejection Trend chart
@@ -171,8 +175,8 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     SELECT
         FORMAT_DATE('%Y-%m-%d', {date_column}) AS day,
         COUNT(DISTINCT CASE
-            WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL THEN serial_number
-            WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number
+            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
+            { "WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number" if has_ft else "" }
             WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
             ELSE NULL
         END) AS rejected
@@ -184,23 +188,26 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
 
     # 5. Top 10 VQC Rejection chart
     top_vqc_rejections_query = f"""
-    SELECT vqc_reason AS name, COUNT(DISTINCT serial_number) AS value
+    SELECT {vqc_reason_col} AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}vqc_reason IS NOT NULL
-    GROUP BY vqc_reason
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}{vqc_reason_col} IS NOT NULL
+    GROUP BY {vqc_reason_col}
     ORDER BY value DESC
     LIMIT 10
     """
 
     # 6. Top 5 FT Rejection chart
-    top_ft_rejections_query = f"""
-    SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
-    FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}ft_reason IS NOT NULL
-    GROUP BY ft_reason
-    ORDER BY value DESC
-    LIMIT 5
-    """
+    if has_ft:
+        top_ft_rejections_query = f"""
+        SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
+        FROM {table}
+        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}ft_reason IS NOT NULL
+        GROUP BY ft_reason
+        ORDER BY value DESC
+        LIMIT 5
+        """
+    else:
+        top_ft_rejections_query = "SELECT 'No data' as name, 0 as value LIMIT 0"
     
     # 7. Top 5 CS Rejection chart
     top_cs_rejections_query = f"""
@@ -212,30 +219,29 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     LIMIT 5
     """
 
-    # 8. 3DE TECH Vendor Top 10 Rejection
+    # 8. Vendor queries
     if has_vendor:
         de_tech_vendor_rejections_query = f"""
-        SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
+        SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
         FROM {table}
-        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND vqc_reason IS NOT NULL
-        GROUP BY vqc_reason
+        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND {vqc_reason_col} IS NOT NULL
+        GROUP BY {vqc_reason_col}
         ORDER BY value DESC
         LIMIT 10
         """
 
-        # 9. IHC vendor top 10 Rejection
         ihc_vendor_rejections_query = f"""
-        SELECT vqc_reason as name, COUNT(DISTINCT serial_number) as value
+        SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
         FROM {table}
-        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND vqc_reason IS NOT NULL
-        GROUP BY vqc_reason
+        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND {vqc_reason_col} IS NOT NULL
+        GROUP BY {vqc_reason_col}
         ORDER BY value DESC
         LIMIT 10
         """
     else:
-        # For non-vendor tables, we can return overall top 10 VQC and FT rejections
         de_tech_vendor_rejections_query = top_vqc_rejections_query
-        ihc_vendor_rejections_query = top_ft_rejections_query
+        de_tech_vendor_rejections_query = top_vqc_rejections_query
+        ihc_vendor_rejections_query = top_cs_rejections_query if is_wabi_sabi else top_ft_rejections_query
 
     def execute_query(query, params=None):
         if params is None:
@@ -269,9 +275,6 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
 
     sku_col = 'sku'
     size_col = 'size'
-    if stage == 'WABI SABI':
-        sku_col = 'sku'
-        size_col = 'SIZE'
 
     if start_date and end_date:
         where_conditions.append(f"date BETWEEN @report_start_date AND @report_end_date")
@@ -315,24 +318,17 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         accepted_col = "ft_accepted"
         rejected_col = "ft_rejected_new"
     elif stage == 'WABI SABI':
-        # Assuming wabi_sabi_data might have different column names or we use raw count logic
-        # But for now, let's try to follow the same pattern if it's a summary table
-        output_col = "output"
-        accepted_col = "accepted"
-        rejected_col = "rejected"
-        # If it's a raw table, this will need to be a different query.
-        # Given the instruction, I'll assume it has these summary columns or I'll adjust.
-        # Actually, let's use the raw count logic for WABI SABI if it's not a summary table.
+        # Handled by separate query below
         pass
 
     if stage == 'WABI SABI':
         kpi_query = f"""
             SELECT 
-                COUNT(DISTINCT serial_number) as output,
-                COUNT(DISTINCT CASE WHEN vqc_status = 'ACCEPTED' THEN serial_number END) as accepted,
-                COUNT(DISTINCT CASE WHEN vqc_status = 'SCRAP' THEN serial_number END) as rejected
+                SUM(output) as output,
+                SUM(accepted) as accepted,
+                SUM(rejected) as rejected
             FROM {ring_status_table}
-            {where_clause.replace('date', 'inward_date')}
+            {where_clause}
         """
     else:
         kpi_query = f"""

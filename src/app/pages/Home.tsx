@@ -21,7 +21,7 @@ export const Home: React.FC = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [selectedKpi, setSelectedKpi] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
-  const { kpis, loading, error, darkMode } = useDashboard();
+  const { kpis, loading, error, darkMode, filters } = useDashboard();
 
   useEffect(() => {
     const fetchLastUpdated = async () => {
@@ -72,6 +72,8 @@ export const Home: React.FC = () => {
     );
   }
 
+  const isWabiSabi = filters.stage === 'WABI SABI';
+
   const kpiCards = kpis ? [
     {
       title: 'TOTAL INWARD',
@@ -79,6 +81,7 @@ export const Home: React.FC = () => {
       value: kpis.total_inward,
       icon: Package,
       color: '#3b82f6',
+      show: true,
     },
     {
       title: 'QC ACCEPTED',
@@ -86,6 +89,7 @@ export const Home: React.FC = () => {
       value: kpis.qc_accepted,
       icon: CheckCircle,
       color: '#10b981',
+      show: !isWabiSabi,
     },
     {
       title: 'TESTING ACCEPTED',
@@ -93,6 +97,7 @@ export const Home: React.FC = () => {
       value: kpis.testing_accepted,
       icon: FlaskConical,
       color: '#8b5cf6',
+      show: true,
     },
     {
       title: 'TOTAL REJECTED',
@@ -100,6 +105,7 @@ export const Home: React.FC = () => {
       value: kpis.total_rejected,
       icon: XCircle,
       color: '#ef4444',
+      show: true,
     },
     {
       title: 'MOVED TO INVENTORY',
@@ -107,6 +113,7 @@ export const Home: React.FC = () => {
       value: kpis.moved_to_inventory,
       icon: Archive,
       color: '#f59e0b',
+      show: true,
     },
     {
       title: 'WORK IN PROGRESS',
@@ -114,8 +121,11 @@ export const Home: React.FC = () => {
       value: kpis.work_in_progress,
       icon: Clock,
       color: '#06b6d4',
+      show: true,
     },
   ] : [];
+
+  const visibleKpiCards = kpiCards.filter(card => card.show);
 
   return (
     <div
@@ -148,8 +158,8 @@ export const Home: React.FC = () => {
 
       <DashboardFilters />
 
-      <div className="grid grid-cols-6 gap-4 mb-8">
-        {kpiCards.map((card, index) => (
+      <div className={`grid gap-4 mb-8 ${visibleKpiCards.length === 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+        {visibleKpiCards.map((card, index) => (
           <motion.div
             key={card.title}
             initial={{ opacity: 0, y: 20 }}
