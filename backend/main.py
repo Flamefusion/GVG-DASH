@@ -628,7 +628,31 @@ async def search_data(
         date_column = 'inward_date'
         sku_column = 'sku'
         size_column = 'size'
-    # 'VQC' and 'All' use default date_column 'vqc_inward_date' and default TABLE
+    elif stage == 'All':
+        # Create a unified subquery for all tables as requested
+        table_to_use = f"""(
+            SELECT 
+                serial_number, vendor, size, sku, 
+                vqc_status, ft_status, cs_status, 
+                vqc_reason, ft_reason, cs_reason, 
+                ctpf_mo, air_mo, vqc_inward_date, ft_inward_date, cs_comp_date
+            FROM {TABLE}
+            UNION ALL
+            SELECT 
+                serial_number, CAST(NULL AS STRING) as vendor, size, sku, 
+                vqc_status, ft_status, cs_status, 
+                vqc_reason, ft_reason, cs_reason, 
+                ctpf_po as ctpf_mo, air_mo, vqc_inward_date, ft_inward_date, cs_comp_date
+            FROM {RT_CONVERSION_TABLE}
+            UNION ALL
+            SELECT 
+                serial_number, CAST(NULL AS STRING) as vendor, size, sku, 
+                ws_status as vqc_status, CAST(NULL AS STRING) as ft_status, cs_status, 
+                ws_reason as vqc_reason, CAST(NULL AS STRING) as ft_reason, cs_reason, 
+                mo_nmber as ctpf_mo, CAST(NULL AS STRING) as air_mo, inward_date as vqc_inward_date, CAST(NULL AS DATE) as ft_inward_date, CAST(cs_comp_date AS DATE) as cs_comp_date
+            FROM {WABI_SABI_TABLE}
+        )"""
+        date_column = 'vqc_inward_date'
 
     conditions = []
     query_parameters = []
@@ -652,43 +676,54 @@ async def search_data(
         conditions.append("vendor = @vendor")
         query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
 
-    # 4. VQC Status (Multi-select)
+    # 4. Ring Status (Multi-select)
     if vqc_status:
-        vqc_col = "ws_status" if stage == "WABI SABI" else "vqc_status"
-        conditions.append(f"{vqc_col} IN UNNEST(@vqc_status_list)")
+        if stage == 'All':
+            conditions.append("(vqc_status IN UNNEST(@vqc_status_list) OR ft_status IN UNNEST(@vqc_status_list) OR cs_status IN UNNEST(@vqc_status_list))")
+        elif stage == 'VQC':
+            conditions.append("vqc_status IN UNNEST(@vqc_status_list)")
+        elif stage == 'FT':
+            conditions.append("ft_status IN UNNEST(@vqc_status_list)")
+        elif stage == 'CS':
+            conditions.append("cs_status IN UNNEST(@vqc_status_list)")
+        elif stage == 'RT':
+            conditions.append("(vqc_status IN UNNEST(@vqc_status_list) OR ft_status IN UNNEST(@vqc_status_list) OR cs_status IN UNNEST(@vqc_status_list))")
+        elif stage == 'WABI SABI':
+            conditions.append("ws_status IN UNNEST(@vqc_status_list)")
+        else:
+            conditions.append("vqc_status IN UNNEST(@vqc_status_list)")
         query_parameters.append(ArrayQueryParameter("vqc_status_list", "STRING", vqc_status))
 
     # 5. Rejection Reason (Multi-select across columns)
     if rejection_reasons:
-        if stage == "WABI SABI":
-            conditions.append(f"""
-                (ws_reason IN UNNEST(@rejection_reasons) OR 
-                 cs_reason IN UNNEST(@rejection_reasons))
-            """)
+        if stage == 'All':
+            conditions.append("(vqc_reason IN UNNEST(@rejection_reasons) OR ft_reason IN UNNEST(@rejection_reasons) OR cs_reason IN UNNEST(@rejection_reasons))")
+        elif stage == 'VQC':
+            conditions.append("vqc_reason IN UNNEST(@rejection_reasons)")
+        elif stage == 'FT':
+            conditions.append("ft_reason IN UNNEST(@rejection_reasons)")
+        elif stage == 'CS':
+            conditions.append("cs_reason IN UNNEST(@rejection_reasons)")
+        elif stage == 'RT':
+            conditions.append("(vqc_reason IN UNNEST(@rejection_reasons) OR ft_reason IN UNNEST(@rejection_reasons) OR cs_reason IN UNNEST(@rejection_reasons))")
+        elif stage == 'WABI SABI':
+            conditions.append("ws_reason IN UNNEST(@rejection_reasons)")
         else:
-            conditions.append(f"""
-                (vqc_reason IN UNNEST(@rejection_reasons) OR 
-                 ft_reason IN UNNEST(@rejection_reasons) OR 
-                 cs_reason IN UNNEST(@rejection_reasons))
-            """)
+            conditions.append("(vqc_reason IN UNNEST(@rejection_reasons) OR ft_reason IN UNNEST(@rejection_reasons) OR cs_reason IN UNNEST(@rejection_reasons))")
         query_parameters.append(ArrayQueryParameter("rejection_reasons", "STRING", rejection_reasons))
 
     # 6. MO Number (Bulk Search)
     if mo_numbers:
         mo_list = [mo.strip() for mo in mo_numbers.split(',') if mo.strip()]
         if mo_list:
-            if stage == 'RT':
-                conditions.append("""
-                    (ctpf_po IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
-                """)
+            if stage == 'All':
+                conditions.append("(ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
+            elif stage == 'RT':
+                conditions.append("(ctpf_po IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
             elif stage == 'WABI SABI':
-                conditions.append("""
-                    mo_nmber IN UNNEST(@mo_list)
-                """)
+                conditions.append("mo_nmber IN UNNEST(@mo_list)")
             else:
-                conditions.append("""
-                    (ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))
-                """)
+                conditions.append("(ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
             query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
 
     # 7. Sizes (Multi-select)
@@ -706,7 +741,7 @@ async def search_data(
 
     select_clause = "*"
     if stage == 'WABI SABI':
-        select_clause = f"*, {sku_column} as sku, {size_column} as size, {date_column} as vqc_inward_date"
+        select_clause = f"*, {sku_column} as sku, {size_column} as size, {date_column} as vqc_inward_date, ws_status as vqc_status, ws_reason as vqc_reason"
 
     # Pagination
     offset = (page - 1) * limit
