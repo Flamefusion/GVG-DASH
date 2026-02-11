@@ -185,6 +185,24 @@ export const Home: React.FC = () => {
         <ChartSection />
       </motion.div>
 
+      {/* Feedback Section */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 1 }}
+        className="mt-16 mb-8 text-center max-w-2xl mx-auto"
+      >
+        <div className={`p-6 rounded-3xl border backdrop-blur-sm transition-all ${
+          darkMode 
+            ? 'bg-white/5 border-white/10 text-gray-400' 
+            : 'bg-white/50 border-gray-200 text-gray-600'
+        }`}>
+          <p className="text-sm italic leading-relaxed">
+            "We are open to feedback and we appreciate your review. Feel free to speak about it and if anything is broken or not right, inform us so we can fix it as soon as possible. Testing all the numbers and filters on our own is not possible, so we encourage your use."
+          </p>
+        </div>
+      </motion.div>
+
       {modalOpen && (
         <DataTableModal
           open={modalOpen}

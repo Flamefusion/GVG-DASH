@@ -84,14 +84,20 @@ export const Nav: React.FC = () => {
                   <li>
                     <strong>RT CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering.
                   </li>
+                  <li>
+                    <strong>WABI SABI Stage:</strong> Data comes from <strong>FQC L1</strong> sheet.
+                  </li>
                 </ul>
                 <h3 className="text-lg font-semibold mb-2">2. Dashboard Use Scenarios:</h3>
-                <ul className="list-disc list-inside ml-4">
+                <ul className="list-disc list-inside ml-4 mb-4">
                   <li><strong>Track WIP:</strong> Monitor Work In Progress across all stages.</li>
                   <li><strong>Download KPI Data:</strong> Click any KPI card to download raw data.</li>
                   <li><strong>Visualize Quality Data:</strong> Use the Analysis page for trends.</li>
                   <li><strong>Generate Reports:</strong> Use the Report page for structured exports.</li>
                 </ul>
+                <div className="mt-6 p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-sm italic">
+                  We are open to feedback and we appreciate your review. Feel free to speak about it and if anything is broken or not right, inform us so we can fix it as soon as possible. Testing all the numbers and filters on our own is not possible, so we encourage your use.
+                </div>
               </div>
             </DialogContent>
           </Dialog>
