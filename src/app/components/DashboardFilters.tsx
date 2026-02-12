@@ -34,11 +34,21 @@ export const DashboardFilters: React.FC = () => {
     });
   };
 
-  const getStageOptions = () => {
-    if (filters.line === 'WABI SABI') {
+  const getStageOptions = (line: string) => {
+    const upperLine = line.toUpperCase();
+    if (upperLine === 'WABI SABI') {
       return ['FT', 'CS'];
     }
+    if (upperLine === 'PRODUCTION' || upperLine === 'RT CONV' || upperLine === 'RT CONVERSION') {
+      return ['VQC', 'FT', 'CS'];
+    }
     return ['VQC', 'FT', 'CS', 'RT', 'RT CS', 'WABI SABI'];
+  };
+
+  const handleLineChange = (value: string) => {
+    const options = getStageOptions(value);
+    const newStage = options.includes(filters.stage) ? filters.stage : options[0];
+    setFilters({ ...filters, line: value, stage: newStage });
   };
 
   return (
@@ -146,7 +156,7 @@ export const DashboardFilters: React.FC = () => {
 
       <Select
         value={filters.line}
-        onValueChange={(value) => setFilters({ ...filters, line: value })}
+        onValueChange={handleLineChange}
       >
         <SelectTrigger className="w-32">
           <SelectValue placeholder="Line" />
@@ -168,7 +178,7 @@ export const DashboardFilters: React.FC = () => {
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
         <SelectContent>
-          {getStageOptions().map((stage) => (
+          {getStageOptions(filters.line).map((stage) => (
             <SelectItem key={stage} value={stage}>
               {stage}
             </SelectItem>
