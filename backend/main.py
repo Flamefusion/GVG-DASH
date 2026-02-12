@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Depends, status, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -11,10 +12,13 @@ from datetime import date, timedelta
 from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data
 from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
+# Load environment variables from .env file
+load_dotenv()
+
 class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
     BIGQUERY_DATASET_ID: str = 'dashboard_data'
-    BIGQUERY_TABLE_ID: str = 'master_station_data'
+    BIGQUERY_TABLE_ID: str = 'master_station_data_test'
     RING_STATUS_TABLE_ID: str = 'ring_status'
     REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
     USERS_TABLE_ID: str = 'users'
@@ -126,7 +130,7 @@ async def get_analysis(start_date: Optional[date] = None, end_date: Optional[dat
     date_col = date_column
 
     try:
-        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col, line)
+        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col, line, stage)
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
@@ -184,9 +188,12 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     # We will build a clause for the VIEW (only Date and Line).
     
     # Construct overview table name
-    overview_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.dash_overview`"
+    overview_table_name = 'dash_overview_test' if 'test' in settings.BIGQUERY_TABLE_ID else 'dash_overview'
+    overview_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{overview_table_name}`"
     
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
+    # Default to 'VQC' if stage is invalid for the overview table to avoid double counting
+    overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
+    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage)
 
     # Base query on dash_overview
     query = f"""
@@ -201,28 +208,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
         {where_clause_str}
     """
     
-    # If specific stage is requested, we should filter by stage in the view
-    if stage:
-        # Map frontend stage names to view stage names if different
-        # View has 'VQC', 'FT', 'CS'.
-        # Frontend might send 'RT', 'RT CS', 'WABI SABI'.
-        # For 'RT'/'RT CS'/'WABI SABI', these are statuses or lines, not just stages in the view logic.
-        # But wait, `dash_overview` has `line` column.
-        # If line is 'WABI SABI', stage can be 'FT' or 'CS'.
-        # If stage param is passed, it acts as a filter.
-        # However, `dash_overview` 'stage' column only has VQC, FT, CS.
-        # If user selects stage='RT', what does it mean? RT is a Line usually?
-        # In the new model, RT is a line.
-        # If user passes stage='RT', and line='RT', then we just filter by line.
-        # If user passes stage='VQC' and line='Production', we filter stage='VQC'.
-        
-        # Adjust query to include stage filter if it matches view stages
-        if stage in ['VQC', 'FT', 'CS']:
-             if where_clause_str:
-                 query += f" AND stage = @stage_param"
-             else:
-                 query += f" WHERE stage = @stage_param"
-             query_parameters.append(ScalarQueryParameter("stage_param", "STRING", stage))
+    # Stage-specific filtering is now handled by build_where_clause above
         
         # If stage is 'WABI SABI' or 'RT', usually handled by Line filter now. 
         # But if frontend still sends stage='WABI SABI' (legacy), we might want to map it or ignore if Line is set.

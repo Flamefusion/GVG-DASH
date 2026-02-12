@@ -60,7 +60,7 @@ FIXED_REJECTION_ROWS = [
     ("SHELL", "WHITE MARKS ON SHELL")
 ]
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None) -> tuple[str, list]:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None, stage: Optional[str] = None) -> tuple[str, list]:
     where_conditions = []
     query_parameters = []
 
@@ -81,26 +81,33 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
         where_conditions.append("line = @line")
         query_parameters.append(ScalarQueryParameter("line", "STRING", line))
     
+    if stage:
+        where_conditions.append("stage = @stage")
+        query_parameters.append(ScalarQueryParameter("stage", "STRING", stage))
+    
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None):
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None, stage: Optional[str] = None):
     # For Top Rejections (which need reasons/SKUs), use master_station_data (table)
     base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column, line)
 
     # For Aggregated Stats (KPIs, Trends), use dash_overview
-    # dash_overview now has sku/size, so we include them in overview where clause
-    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
+    # dash_overview now has sku/size and stage, so we include them in overview where clause
+    # Default to 'VQC' stage if none provided to avoid double counting
+    overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
+    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage)
     
     # Construct overview table name
     # table is like `project.dataset.master_station_data`
-    # overview needs `project.dataset.dash_overview`
+    # overview needs `project.dataset.dash_overview` or `dash_overview_test`
     parts = table.replace('`', '').split('.')
+    overview_base = 'dash_overview_test' if 'test' in table else 'dash_overview'
     if len(parts) == 3:
-        overview_table = f"`{parts[0]}.{parts[1]}.dash_overview`"
+        overview_table = f"`{parts[0]}.{parts[1]}.{overview_base}`"
     else:
         # Fallback if table name format is unexpected, assuming same dataset
-        overview_table = "dash_overview" # Or handle error
+        overview_table = overview_base 
 
     # 1. KPIs
     kpi_query = f"""
@@ -231,16 +238,19 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     # To be consistent with get_analysis_data, we'll derive overview table name.
     
     # Assuming ring_status_table is passed as `project.dataset.ring_status` or similar
-    # We want `project.dataset.dash_overview`
+    # We want `project.dataset.dash_overview` or `dash_overview_test`
     parts = ring_status_table.replace('`', '').split('.')
+    overview_base = 'dash_overview_test' if 'test' in ring_status_table else 'dash_overview'
     if len(parts) >= 2:
         # dataset is parts[-2]
-        overview_table = f"`{'.'.join(parts[:-1])}.dash_overview`"
+        overview_table = f"`{'.'.join(parts[:-1])}.{overview_base}`"
     else:
-        overview_table = "`production-dashboard-482014.dashboard_data.dash_overview`" # Fallback/Hardcode if needed
+        overview_table = f"`production-dashboard-482014.dashboard_data.{overview_base}`" # Fallback/Hardcode if needed
 
-    # Build WHERE for Overview (Now with SKU/Size)
-    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
+    # Build WHERE for Overview (Now with SKU/Size and Stage)
+    # Default to 'VQC' if stage is not in the funnel stages to avoid double counting
+    overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
+    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage)
     
     # Defaults
     output_expr = "SUM(total_inward)"

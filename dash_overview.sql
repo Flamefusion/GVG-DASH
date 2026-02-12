@@ -1,46 +1,26 @@
-CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.dash_overview` AS
-WITH vqc_data AS (
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview_test` AS
+WITH single_scan_funnel AS (
+    -- Single scan of the master table
     SELECT
-        vqc_inward_date AS event_date,
+        entry.event_date,
         line,
-        'VQC' AS stage,
-        vqc_status AS status,
-        vendor,
+        entry.stage,
         sku,
-        size
-    FROM `production-dashboard-482014.dashboard_data.master_station_data`
-    WHERE vqc_inward_date IS NOT NULL AND (line != 'WABI SABI' OR line IS NULL)
-),
-ft_data AS (
-    SELECT
-        ft_inward_date AS event_date,
-        line,
-        'FT' AS stage,
-        ft_status AS status,
+        size,
         vendor,
-        sku,
-        size
-    FROM `production-dashboard-482014.dashboard_data.master_station_data`
-    WHERE ft_inward_date IS NOT NULL
-),
-cs_data AS (
-    SELECT
-        cs_comp_date AS event_date,
-        line,
-        'CS' AS stage,
-        cs_status AS status,
-        vendor,
-        sku,
-        size
-    FROM `production-dashboard-482014.dashboard_data.master_station_data`
-    WHERE cs_comp_date IS NOT NULL
-),
-combined AS (
-    SELECT * FROM vqc_data
-    UNION ALL
-    SELECT * FROM ft_data
-    UNION ALL
-    SELECT * FROM cs_data
+        vqc_status,
+        ft_status,
+        cs_status
+    FROM `production-dashboard-482014.dashboard_data.master_station_data_test`,
+    -- This unpivots the dates into stages without scanning the table 3 times
+    UNNEST([
+        STRUCT(vqc_inward_date AS event_date, 'VQC' AS stage),
+        STRUCT(ft_inward_date AS event_date, 'FT' AS stage),
+        STRUCT(cs_comp_date AS event_date, 'CS' AS stage)
+    ]) AS entry
+    WHERE entry.event_date IS NOT NULL
+    -- Filter out WABI SABI for the VQC entry point as per your rules
+    AND NOT (entry.stage = 'VQC' AND (line = 'WABI SABI'))
 )
 SELECT
     event_date,
@@ -50,32 +30,54 @@ SELECT
     size,
     COUNT(*) AS total_inward,
     
-    -- Accepted Metrics
-    COUNTIF(stage = 'VQC' AND status = 'ACCEPTED') AS qc_accepted,
-    COUNTIF(stage = 'FT' AND status = 'ACCEPTED') AS testing_accepted,
-    COUNTIF(stage = 'CS' AND status = 'ACCEPTED') AS moved_to_inventory,
-    COUNTIF(status = 'ACCEPTED') AS total_accepted,
+    -- Funnel Metrics: Tracks the cohort's progress through all stages
+    COUNTIF(vqc_status = 'ACCEPTED') AS qc_accepted,
+    COUNTIF(UPPER(ft_status) = 'ACCEPTED') AS testing_accepted,
+    COUNTIF(cs_status = 'ACCEPTED') AS moved_to_inventory,
+    COUNTIF(cs_status = 'ACCEPTED') AS total_accepted, -- Success = Finished the funnel
 
-    -- Rejection Metrics
-    COUNTIF(status IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SHELL RELATED', 'FUNCTIONAL REJECTION')) AS total_rejection,
+    -- Rejection Metrics (Calculated across the entire funnel for this cohort)
+    COUNTIF(
+        UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR
+        UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+        UPPER(cs_status) = 'REJECTED'
+    ) AS total_rejection,
     
-    COUNTIF(vendor = '3DE TECH' AND status IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SHELL RELATED', 'FUNCTIONAL REJECTION')) AS `3de_tech_rejection`,
-    COUNTIF(vendor = 'IHC' AND status IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SHELL RELATED', 'FUNCTIONAL REJECTION')) AS ihc_rejection,
+    COUNTIF(vendor = '3DE TECH' AND (
+        UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR 
+        UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+        UPPER(cs_status) = 'REJECTED'
+    )) AS `3de_tech_rejection`,
     
-    COUNTIF(stage = 'VQC' AND status IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED')) AS vqc_rejection,
-    COUNTIF(stage = 'FT' AND status IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION')) AS ft_rejection,
-    COUNTIF(stage = 'CS' AND status = 'REJECTED') AS cs_rejection,
+    COUNTIF(vendor = 'IHC' AND (
+        UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR 
+        UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+        UPPER(cs_status) = 'REJECTED'
+    )) AS ihc_rejection,
+    
+    -- Individual stage rejection counts for that cohort
+    COUNTIF(UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION')) AS vqc_rejection,
+    COUNTIF(UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION')) AS ft_rejection,
+    COUNTIF(UPPER(cs_status) = 'REJECTED') AS cs_rejection,
 
-    -- Breakdown for Charts
-    COUNTIF(status = 'RT CONVERSION') AS rt_conversion_count,
-    COUNTIF(status = 'WABI SABI') AS wabi_sabi_count,
-    COUNTIF(status IN ('SCRAP', 'REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SHELL RELATED', 'FUNCTIONAL REJECTION')) AS scrap_count,
+    -- Chart Breakdown
+    COUNTIF(vqc_status = 'RT CONVERSION') AS rt_conversion_count,
+    COUNTIF(vqc_status = 'WABI SABI' OR ft_status = 'WABI SABI') AS wabi_sabi_count,
+    COUNTIF(
+        UPPER(vqc_status) = 'SCRAP' OR 
+        UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'FUNCTIONAL REJECTION') OR 
+        UPPER(cs_status) = 'REJECTED'
+    ) AS scrap_count,
 
-    -- Work In Progress (Pending Status on the day of inward)
-    COUNTIF(status IS NULL) AS work_in_progress,
+    -- Work In Progress (Cohorts still in the system)
+    COUNTIF(
+        (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
+        (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
+        (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
+        (cs_status != 'ACCEPTED' OR cs_status IS NULL)
+    ) AS work_in_progress,
 
-    -- Yield
-    SAFE_DIVIDE(COUNTIF(status = 'ACCEPTED'), COUNT(*)) AS yield
+    SAFE_DIVIDE(COUNTIF(cs_status = 'ACCEPTED'), COUNT(*)) AS yield
 
-FROM combined
+FROM single_scan_funnel
 GROUP BY 1, 2, 3, 4, 5;
