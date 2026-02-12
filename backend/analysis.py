@@ -60,7 +60,7 @@ FIXED_REJECTION_ROWS = [
     ("SHELL", "WHITE MARKS ON SHELL")
 ]
 
-def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size') -> tuple[str, list]:
+def build_where_clause(start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None) -> tuple[str, list]:
     where_conditions = []
     query_parameters = []
 
@@ -77,116 +77,77 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
         where_conditions.append(f"{sku_column} IN UNNEST(@skus)")
         query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
     
+    if line:
+        where_conditions.append("line = @line")
+        query_parameters.append(ScalarQueryParameter("line", "STRING", line))
+    
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size'):
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column)
+def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None):
+    # For Top Rejections (which need reasons/SKUs), use master_station_data (table)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column, line)
 
-    # Determine table properties
-    is_wabi_sabi = "wabi_sabi_data" in table
-    has_vendor = "rt_conversion_data" not in table and not is_wabi_sabi
-    has_ft = not is_wabi_sabi
-
-    vqc_status_col = "ws_status" if is_wabi_sabi else "vqc_status"
-    vqc_reason_col = "ws_reason" if is_wabi_sabi else "vqc_reason"
+    # For Aggregated Stats (KPIs, Trends), use dash_overview
+    # dash_overview now has sku/size, so we include them in overview where clause
+    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
     
-    # 1. KPIs
-    vendor_kpi_part = ""
-    if has_vendor:
-        vendor_kpi_part = f"""
-        COUNT(DISTINCT CASE
-            WHEN vendor = '3DE TECH' AND (
-                (UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL) OR
-                (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
-                (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
-            ) THEN serial_number
-            ELSE NULL
-        END) AS de_tech_rejection,
-        COUNT(DISTINCT CASE
-            WHEN vendor = 'IHC' AND (
-                (UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL) OR
-                (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
-                (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
-            ) THEN serial_number
-            ELSE NULL
-        END) AS ihc_rejection,
-        """
+    # Construct overview table name
+    # table is like `project.dataset.master_station_data`
+    # overview needs `project.dataset.dash_overview`
+    parts = table.replace('`', '').split('.')
+    if len(parts) == 3:
+        overview_table = f"`{parts[0]}.{parts[1]}.dash_overview`"
     else:
-        vendor_kpi_part = "0 AS de_tech_rejection, 0 AS ihc_rejection,"
+        # Fallback if table name format is unexpected, assuming same dataset
+        overview_table = "dash_overview" # Or handle error
 
-    ft_rejection_part = "COUNT(DISTINCT CASE WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number ELSE NULL END) AS ft_rejection," if has_ft else "0 AS ft_rejection,"
-
+    # 1. KPIs
     kpi_query = f"""
     SELECT
-        COUNT(DISTINCT CASE
-            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
-            { "WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number" if has_ft else "" }
-            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS total_rejected,
-        {vendor_kpi_part}
-        COUNT(DISTINCT CASE
-            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS vqc_rejection,
-        {ft_rejection_part}
-        COUNT(DISTINCT CASE
-            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS cs_rejection
-    FROM {table}
-    {base_where_clause_str}
+        SUM(total_rejection) AS total_rejected,
+        SUM(`3de_tech_rejection`) AS de_tech_rejection,
+        SUM(ihc_rejection) AS ihc_rejection,
+        SUM(vqc_rejection) AS vqc_rejection,
+        SUM(ft_rejection) AS ft_rejection,
+        SUM(cs_rejection) AS cs_rejection
+    FROM {overview_table}
+    {overview_where}
     """
 
     # 2. Accepted Vs Rejected Chart
     accepted_vs_rejected_query = f"""
-    WITH data AS (
-        SELECT
-            CASE
-                WHEN UPPER(cs_status) = 'ACCEPTED' THEN 'Accepted'
-                WHEN UPPER({vqc_status_col}) = 'RT CONVERSION' THEN 'RT Conversion'
-                WHEN UPPER({vqc_status_col}) = 'WABI SABI' THEN 'Wabi Sabi'
-                WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'REJECTED') THEN 'Scrap'
-                { "WHEN UPPER(ft_status) = 'FUNCTIONAL REJECTION' THEN 'Scrap'" if has_ft else "" }
-                WHEN UPPER(cs_status) = 'REJECTED' THEN 'Scrap'
-                ELSE 'Other'
-            END AS name,
-            serial_number
-        FROM {table}
-        {base_where_clause_str}
-    )
-    SELECT name, COUNT(DISTINCT serial_number) AS value
-    FROM data
-    WHERE name != 'Other'
-    GROUP BY name
+    SELECT 'Accepted' as name, SUM(total_accepted) as value FROM {overview_table} {overview_where}
+    UNION ALL
+    SELECT 'RT Conversion' as name, SUM(rt_conversion_count) as value FROM {overview_table} {overview_where}
+    UNION ALL
+    SELECT 'Wabi Sabi' as name, SUM(wabi_sabi_count) as value FROM {overview_table} {overview_where}
+    UNION ALL
+    SELECT 'Scrap' as name, SUM(scrap_count) as value FROM {overview_table} {overview_where}
     """
 
     # 3. Rejection Breakdown chart
     rejection_breakdown_query = f"""
-    SELECT {vqc_status_col} AS name, COUNT(DISTINCT serial_number) AS value
-    FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}UPPER({vqc_status_col}) IN ('RT CONVERSION', 'WABI SABI', 'SCRAP', 'REJECTED')
-    GROUP BY {vqc_status_col}
+    SELECT 'RT CONVERSION' as name, SUM(rt_conversion_count) as value FROM {overview_table} {overview_where}
+    UNION ALL
+    SELECT 'WABI SABI' as name, SUM(wabi_sabi_count) as value FROM {overview_table} {overview_where}
+    UNION ALL
+    SELECT 'SCRAP' as name, SUM(scrap_count) as value FROM {overview_table} {overview_where}
     """
 
     # 4. Rejection Trend chart
     rejection_trend_query = f"""
     SELECT
-        FORMAT_DATE('%Y-%m-%d', {date_column}) AS day,
-        COUNT(DISTINCT CASE
-            WHEN UPPER({vqc_status_col}) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION', 'REJECTED') AND {vqc_reason_col} IS NOT NULL THEN serial_number
-            { "WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL THEN serial_number" if has_ft else "" }
-            WHEN UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL THEN serial_number
-            ELSE NULL
-        END) AS rejected
-    FROM {table}
-    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}{date_column} IS NOT NULL
+        FORMAT_DATE('%Y-%m-%d', event_date) AS day,
+        SUM(total_rejection) AS rejected
+    FROM {overview_table}
+    {overview_where}
     GROUP BY day
     ORDER BY day
     """
 
-    # 5. Top 10 VQC Rejection chart
+    # 5. Top 10 VQC Rejection chart (Detailed - uses master_station_data)
+    vqc_reason_col = "vqc_reason"
     top_vqc_rejections_query = f"""
     SELECT {vqc_reason_col} AS name, COUNT(DISTINCT serial_number) AS value
     FROM {table}
@@ -197,17 +158,14 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     """
 
     # 6. Top 5 FT Rejection chart
-    if has_ft:
-        top_ft_rejections_query = f"""
-        SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
-        FROM {table}
-        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}ft_reason IS NOT NULL
-        GROUP BY ft_reason
-        ORDER BY value DESC
-        LIMIT 5
-        """
-    else:
-        top_ft_rejections_query = "SELECT 'No data' as name, 0 as value LIMIT 0"
+    top_ft_rejections_query = f"""
+    SELECT ft_reason AS name, COUNT(DISTINCT serial_number) AS value
+    FROM {table}
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "}ft_reason IS NOT NULL
+    GROUP BY ft_reason
+    ORDER BY value DESC
+    LIMIT 5
+    """
     
     # 7. Top 5 CS Rejection chart
     top_cs_rejections_query = f"""
@@ -220,28 +178,23 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     """
 
     # 8. Vendor queries
-    if has_vendor:
-        de_tech_vendor_rejections_query = f"""
-        SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
-        FROM {table}
-        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND {vqc_reason_col} IS NOT NULL
-        GROUP BY {vqc_reason_col}
-        ORDER BY value DESC
-        LIMIT 10
-        """
+    de_tech_vendor_rejections_query = f"""
+    SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
+    FROM {table}
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = '3DE TECH' AND {vqc_reason_col} IS NOT NULL
+    GROUP BY {vqc_reason_col}
+    ORDER BY value DESC
+    LIMIT 10
+    """
 
-        ihc_vendor_rejections_query = f"""
-        SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
-        FROM {table}
-        {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND {vqc_reason_col} IS NOT NULL
-        GROUP BY {vqc_reason_col}
-        ORDER BY value DESC
-        LIMIT 10
-        """
-    else:
-        de_tech_vendor_rejections_query = top_vqc_rejections_query
-        de_tech_vendor_rejections_query = top_vqc_rejections_query
-        ihc_vendor_rejections_query = top_cs_rejections_query if is_wabi_sabi else top_ft_rejections_query
+    ihc_vendor_rejections_query = f"""
+    SELECT {vqc_reason_col} as name, COUNT(DISTINCT serial_number) as value
+    FROM {table}
+    {base_where_clause_str + " AND " if base_where_clause_str else "WHERE "} vendor = 'IHC' AND {vqc_reason_col} IS NOT NULL
+    GROUP BY {vqc_reason_col}
+    ORDER BY value DESC
+    LIMIT 10
+    """
 
     def execute_query(query, params=None):
         if params is None:
@@ -254,13 +207,15 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             print(f"Error executing query: {e}")
             return []
 
-    kpis_result = execute_query(kpi_query, query_parameters)
+    # KPIs and Trends use overview_params (no sku/size)
+    kpis_result = execute_query(kpi_query, overview_params)
     
     return {
         "kpis": kpis_result[0] if kpis_result else {},
-        "acceptedVsRejected": execute_query(accepted_vs_rejected_query, query_parameters),
-        "rejectionBreakdown": execute_query(rejection_breakdown_query, query_parameters),
-        "rejectionTrend": execute_query(rejection_trend_query, query_parameters),
+        "acceptedVsRejected": execute_query(accepted_vs_rejected_query, overview_params),
+        "rejectionBreakdown": execute_query(rejection_breakdown_query, overview_params),
+        "rejectionTrend": execute_query(rejection_trend_query, overview_params),
+        # Detailed charts use query_parameters (with sku/size)
         "topVqcRejections": execute_query(top_vqc_rejections_query, query_parameters),
         "topFtRejections": execute_query(top_ft_rejections_query, query_parameters),
         "topCsRejections": execute_query(top_cs_rejections_query, query_parameters),
@@ -268,87 +223,74 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         "ihcVendorRejections": execute_query(ihc_vendor_rejections_query, query_parameters),
     }
 
-def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None):
+def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
     
-    where_conditions = []
-    query_parameters = []
-
-    sku_col = 'sku'
-    size_col = 'size'
-
-    if start_date and end_date:
-        where_conditions.append(f"date BETWEEN @report_start_date AND @report_end_date")
-        query_parameters.append(ScalarQueryParameter("report_start_date", "DATE", str(start_date)))
-        query_parameters.append(ScalarQueryParameter("report_end_date", "DATE", str(end_date)))
+    # Use dash_overview for KPIs if possible (ignoring SKUs/Sizes as view doesn't have them)
+    # ring_status_table param is actually ignored if we enforce dash_overview logic
+    # But let's verify if we should use passed table or hardcode dash_overview. 
+    # To be consistent with get_analysis_data, we'll derive overview table name.
     
-    if sizes:
-        where_conditions.append(f"{size_col} IN UNNEST(@sizes)")
-        query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
+    # Assuming ring_status_table is passed as `project.dataset.ring_status` or similar
+    # We want `project.dataset.dash_overview`
+    parts = ring_status_table.replace('`', '').split('.')
+    if len(parts) >= 2:
+        # dataset is parts[-2]
+        overview_table = f"`{'.'.join(parts[:-1])}.dash_overview`"
+    else:
+        overview_table = "`production-dashboard-482014.dashboard_data.dash_overview`" # Fallback/Hardcode if needed
 
-    if skus:
-        where_conditions.append(f"{sku_col} IN UNNEST(@skus)")
-        query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
+    # Build WHERE for Overview (Now with SKU/Size)
+    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
     
-    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
-        
     # Defaults
-    output_col = "vqc_output"
-    accepted_col = "vqc_accepted"
-    rejected_col = "vqc_rejected_new" 
+    output_expr = "SUM(total_inward)"
+    accepted_expr = "SUM(total_accepted)" 
+    rejected_expr = "SUM(total_rejection)"
+    
+    extra_conditions = []
     
     if stage == 'VQC':
-        if vendor == '3DE TECH':
-            output_col = "vqc_output_3de"
-            accepted_col = "vqc_accepted_3de"
-            rejected_col = "`3DE_TECH_REJECTION`"
-        elif vendor == 'IHC':
-            output_col = "vqc_output_ihc"
-            accepted_col = "vqc_accepted_ihc"
-            rejected_col = "IHC_REJECTION"
-        elif vendor == 'MAKENICA':
-            output_col = "vqc_output_makenica"
-            accepted_col = "vqc_accepted_makenica"
-            rejected_col = "MAKENICA_REJECTION"
-        else: # All vendors
-            output_col = "vqc_output"
-            accepted_col = "vqc_accepted"
-            rejected_col = "vqc_rejected_new"
+        accepted_expr = "SUM(qc_accepted)"
+        rejected_expr = "SUM(vqc_rejection)"
+        if vendor != 'all':
+             extra_conditions.append(f"vendor = @vendor_param")
+             overview_params.append(ScalarQueryParameter("vendor_param", "STRING", vendor))
     elif stage == 'FT':
-        output_col = "ft_output"
-        accepted_col = "ft_accepted"
-        rejected_col = "ft_rejected_new"
-    elif stage == 'WABI SABI':
-        # Handled by separate query below
-        pass
+        accepted_expr = "SUM(testing_accepted)"
+        rejected_expr = "SUM(ft_rejection)"
+    elif stage == 'CS': 
+        accepted_expr = "SUM(moved_to_inventory)"
+        rejected_expr = "SUM(cs_rejection)"
+    # Wabi Sabi line logic handled by filter on line='WABI SABI' which affects all rows
+        
+    if extra_conditions:
+        if overview_where:
+            overview_where += " AND " + " AND ".join(extra_conditions)
+        else:
+            overview_where = "WHERE " + " AND ".join(extra_conditions)
 
-    if stage == 'WABI SABI':
-        kpi_query = f"""
-            SELECT 
-                SUM(output) as output,
-                SUM(accepted) as accepted,
-                SUM(rejected) as rejected
-            FROM {ring_status_table}
-            {where_clause}
-        """
+    kpi_query = f"""
+        SELECT 
+            {output_expr} as output,
+            {accepted_expr} as accepted,
+            {rejected_expr} as rejected
+        FROM {overview_table}
+        {overview_where}
+    """
+    
+    # Rejection Analysis (Detailed) - keeps using filters (SKU/Size)
+    rejection_where_conditions, rejection_query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'date', 'sku', 'size', line)
+    
+    # Inject vendor if needed for rejection analysis
+    if vendor and vendor.lower() != 'all':
+        if rejection_where_conditions:
+            rejection_where = f"{rejection_where_conditions} AND vendor = @vendor_param_rej"
+        else:
+            rejection_where = "WHERE vendor = @vendor_param_rej"
+        rejection_query_parameters.append(ScalarQueryParameter("vendor_param_rej", "STRING", vendor))
     else:
-        kpi_query = f"""
-            SELECT 
-                SUM({output_col}) as output,
-                SUM({accepted_col}) as accepted,
-                SUM({rejected_col}) as rejected
-            FROM {ring_status_table}
-            {where_clause}
-        """
-    
-    rejection_where_conditions = list(where_conditions) # Copy existing date conditions
-    rejection_query_parameters = list(query_parameters) # Copy existing date parameters
+        rejection_where = rejection_where_conditions
 
-    if stage == 'VQC' and vendor and vendor.lower() != 'all':
-        rejection_where_conditions.append("vendor = @vendor_param")
-        rejection_query_parameters.append(ScalarQueryParameter("vendor_param", "STRING", vendor))
-            
-    rejection_where = f"WHERE {' AND '.join(rejection_where_conditions)}" if rejection_where_conditions else ""
-    
     rejection_query = f"""
         SELECT 
             rejection_category,
@@ -362,12 +304,11 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     
     kpis = {}
     try:
-        job_config_kpi = QueryJobConfig(query_parameters=query_parameters)
+        job_config_kpi = QueryJobConfig(query_parameters=overview_params)
         job = client.query(kpi_query, job_config=job_config_kpi)
         res = list(job.result())
         if res:
             kpis = dict(res[0])
-            # Handle nulls
             kpis = {k: (v if v is not None else 0) for k, v in kpis.items()}
     except Exception as e:
         print(f"KPI Query Error: {e}")
@@ -393,7 +334,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         "rejections": grouped_rejections
     }
 
-def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None):
+def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
     where_conditions = []
     query_parameters = []
 
@@ -413,6 +354,10 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
     if skus:
         where_conditions.append("sku IN UNNEST(@skus)")
         query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
+        
+    if line:
+        where_conditions.append("line = @line")
+        query_parameters.append(ScalarQueryParameter("line", "STRING", line))
     
     where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
 

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Filter, Search, ChevronsUpDown, Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useDashboard } from '@/app/contexts/DashboardContext';
@@ -12,26 +12,33 @@ import { Checkbox } from '@/app/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 
 export const DashboardFilters: React.FC = () => {
-  const { filters, setFilters, darkMode, skus, sizes, applyFilters, isFullScreen, toggleFullScreen } = useDashboard();
+  const { filters, setFilters, darkMode, skus, sizes, lines, applyFilters, isFullScreen, toggleFullScreen } = useDashboard();
   const [sizeOpen, setSizeOpen] = useState(false);
   const [skuOpen, setSkuOpen] = useState(false);
 
   const toggleSize = (size: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedSizes: prev.selectedSizes.includes(size)
-        ? prev.selectedSizes.filter(s => s !== size)
-        : [...prev.selectedSizes, size]
-    }));
+    setFilters({
+      ...filters,
+      selectedSizes: filters.selectedSizes.includes(size)
+        ? filters.selectedSizes.filter(s => s !== size)
+        : [...filters.selectedSizes, size]
+    });
   };
 
   const toggleSku = (sku: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedSkus: prev.selectedSkus.includes(sku)
-        ? prev.selectedSkus.filter(s => s !== sku)
-        : [...prev.selectedSkus, sku]
-    }));
+    setFilters({
+      ...filters,
+      selectedSkus: filters.selectedSkus.includes(sku)
+        ? filters.selectedSkus.filter(s => s !== sku)
+        : [...filters.selectedSkus, sku]
+    });
+  };
+
+  const getStageOptions = () => {
+    if (filters.line === 'WABI SABI') {
+      return ['FT', 'CS'];
+    }
+    return ['VQC', 'FT', 'CS', 'RT', 'RT CS', 'WABI SABI'];
   };
 
   return (
@@ -45,7 +52,7 @@ export const DashboardFilters: React.FC = () => {
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={`w-40 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"}`}
+            className={`w-32 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"}`}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {filters.dateRange.from ? format(filters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
@@ -54,8 +61,8 @@ export const DashboardFilters: React.FC = () => {
         <PopoverContent className="w-auto p-0">
           <Calendar
             mode="single"
-            selected={filters.dateRange.from}
-            onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, from: date } })}
+            selected={filters.dateRange.from || undefined}
+            onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, from: date || null } })}
             initialFocus
           />
         </PopoverContent>
@@ -65,7 +72,7 @@ export const DashboardFilters: React.FC = () => {
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={`w-40 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"}`}
+            className={`w-32 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"}`}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {filters.dateRange.to ? format(filters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
@@ -74,8 +81,8 @@ export const DashboardFilters: React.FC = () => {
         <PopoverContent className="w-auto p-0">
           <Calendar
             mode="single"
-            selected={filters.dateRange.to}
-            onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, to: date } })}
+            selected={filters.dateRange.to || undefined}
+            onSelect={(date) => setFilters({ ...filters, dateRange: { ...filters.dateRange, to: date || null } })}
             initialFocus
           />
         </PopoverContent>
@@ -84,8 +91,8 @@ export const DashboardFilters: React.FC = () => {
       {/* Size Multi-Select */}
       <Popover open={sizeOpen} onOpenChange={setSizeOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-40 justify-between">
-            {filters.selectedSizes.length > 0 ? `${filters.selectedSizes.length} Sizes selected` : "Select Size"}
+          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-32 justify-between">
+            {filters.selectedSizes.length > 0 ? `${filters.selectedSizes.length} Sizes` : "Size"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -112,8 +119,8 @@ export const DashboardFilters: React.FC = () => {
       {/* SKU Multi-Select */}
       <Popover open={skuOpen} onOpenChange={setSkuOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-40 justify-between">
-            {filters.selectedSkus.length > 0 ? `${filters.selectedSkus.length} SKUs selected` : "Select SKU"}
+          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-32 justify-between">
+            {filters.selectedSkus.length > 0 ? `${filters.selectedSkus.length} SKUs` : "SKU"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -138,25 +145,40 @@ export const DashboardFilters: React.FC = () => {
       </Popover>
 
       <Select
+        value={filters.line}
+        onValueChange={(value) => setFilters({ ...filters, line: value })}
+      >
+        <SelectTrigger className="w-32">
+          <SelectValue placeholder="Line" />
+        </SelectTrigger>
+        <SelectContent>
+          {lines.map((line) => (
+            <SelectItem key={line} value={line}>
+              {line}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
         value={filters.stage}
         onValueChange={(value) => setFilters({ ...filters, stage: value })}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-32">
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="VQC">VQC</SelectItem>
-          <SelectItem value="FT">FT</SelectItem>
-          <SelectItem value="CS">CS</SelectItem>
-          <SelectItem value="RT">RT</SelectItem>
-          <SelectItem value="RT CS">RT CS</SelectItem>
-          <SelectItem value="WABI SABI">WABI SABI</SelectItem>
+          {getStageOptions().map((stage) => (
+            <SelectItem key={stage} value={stage}>
+              {stage}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       
       <Button onClick={applyFilters} className="flex items-center gap-2">
         <Search size={16} />
-        Apply Filters
+        Apply
       </Button>
     </div>
   );

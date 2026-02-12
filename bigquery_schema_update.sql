@@ -1,6 +1,6 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.master_station_data`
-(
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.master_station_data` (
     vqc_inward_date DATE,
+    line STRING,
     serial_number STRING NOT NULL,
     vqc_status STRING,
     vqc_reason STRING,
@@ -14,6 +14,7 @@ CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.master_stati
     sku STRING,
     ctpf_mo STRING,
     air_mo STRING,
+    pcb STRING,
     vendor STRING,
     last_updated_at DATETIME
 );

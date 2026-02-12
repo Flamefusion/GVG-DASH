@@ -12,10 +12,8 @@ import { Checkbox } from '@/app/components/ui/checkbox';
 
 interface ReportFiltersProps {}
 
-const reportStages = ['VQC', 'FT', 'RT', 'RT CS', 'WABI SABI'];
-
 export const ReportFilters: React.FC<ReportFiltersProps> = () => {
-  const { darkMode, reportFilters, setReportFilters, skus, sizes } = useDashboard();
+  const { darkMode, reportFilters, setReportFilters, skus, sizes, lines } = useDashboard();
   const [vendors, setVendors] = useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [sizeOpen, setSizeOpen] = useState(false);
@@ -58,6 +56,13 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
     }));
   };
 
+  const getStageOptions = () => {
+    if (reportFilters.line === 'WABI SABI') {
+      return ['FT', 'CS']; // Assuming Wabi Sabi has no VQC
+    }
+    return ['VQC', 'FT', 'RT', 'RT CS', 'WABI SABI'];
+  };
+
   const isVendorDisabled = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(reportFilters.stage);
 
   return (
@@ -72,7 +77,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.from && "text-muted-foreground"}`}
+              className={`w-32 justify-start text-left font-normal ${!reportFilters.dateRange.from && "text-muted-foreground"}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {reportFilters.dateRange.from ? format(reportFilters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
@@ -92,7 +97,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
-              className={`w-40 justify-start text-left font-normal ${!reportFilters.dateRange.to && "text-muted-foreground"}`}
+              className={`w-32 justify-start text-left font-normal ${!reportFilters.dateRange.to && "text-muted-foreground"}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {reportFilters.dateRange.to ? format(reportFilters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
@@ -112,8 +117,8 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
       {/* Size Multi-Select */}
       <Popover open={sizeOpen} onOpenChange={setSizeOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-40 justify-between">
-            {reportFilters.selectedSizes.length > 0 ? `${reportFilters.selectedSizes.length} Sizes selected` : "Select Size"}
+          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-32 justify-between">
+            {reportFilters.selectedSizes.length > 0 ? `${reportFilters.selectedSizes.length} Sizes` : "Size"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -140,8 +145,8 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
       {/* SKU Multi-Select */}
       <Popover open={skuOpen} onOpenChange={setSkuOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-40 justify-between">
-            {reportFilters.selectedSkus.length > 0 ? `${reportFilters.selectedSkus.length} SKUs selected` : "Select SKU"}
+          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-32 justify-between">
+            {reportFilters.selectedSkus.length > 0 ? `${reportFilters.selectedSkus.length} SKUs` : "SKU"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -165,17 +170,26 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
         </PopoverContent>
       </Popover>
 
+      <Select value={reportFilters.line} onValueChange={(line) => setReportFilters({ ...reportFilters, line })}>
+        <SelectTrigger className="w-32">
+          <SelectValue placeholder="Line" />
+        </SelectTrigger>
+        <SelectContent>
+          {lines.map(line => <SelectItem key={line} value={line}>{line}</SelectItem>)}
+        </SelectContent>
+      </Select>
+
       <Select value={reportFilters.stage} onValueChange={(stage) => setReportFilters({ ...reportFilters, stage })}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-32">
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
         <SelectContent>
-          {reportStages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          {getStageOptions().map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
         </SelectContent>
       </Select>
 
       <Select value={reportFilters.vendor} onValueChange={(vendor) => setReportFilters({ ...reportFilters, vendor })} disabled={isVendorDisabled}>
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-32">
           <SelectValue placeholder="Vendor" />
         </SelectTrigger>
         <SelectContent>
@@ -185,8 +199,8 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
       </Select>
 
       <Select value={reportFilters.reportType} onValueChange={(val: 'Daily' | 'Rejection') => setReportFilters({ ...reportFilters, reportType: val })}>
-        <SelectTrigger className="w-40">
-          <SelectValue placeholder="Report Type" />
+        <SelectTrigger className="w-32">
+          <SelectValue placeholder="Type" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="Daily">Daily Report</SelectItem>

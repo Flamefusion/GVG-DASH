@@ -72,7 +72,7 @@ export const Home: React.FC = () => {
     );
   }
 
-  const isWabiSabi = filters.stage === 'WABI SABI';
+  const isWabiSabi = filters.line === 'WABI SABI';
 
   const kpiCards = kpis ? [
     {

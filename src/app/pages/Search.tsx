@@ -36,7 +36,7 @@ const COMMON_REASONS = [
 ].sort();
 
 const Search: React.FC = () => {
-  const { darkMode, searchFilters, setSearchFilters, searchResults, setSearchResults } = useDashboard();
+  const { darkMode, searchFilters, setSearchFilters, searchResults, setSearchResults, lines } = useDashboard();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [vendorsList, setVendorsList] = useState<string[]>([]);
@@ -68,18 +68,13 @@ const Search: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Fetch SKUs and Sizes based on stage
+    // Fetch SKUs and Sizes
     const fetchFilterOptions = async () => {
       try {
-        let table = 'master_station_data';
-        if (searchFilters.stage === 'RT') {
-          table = 'rt_conversion_data';
-        } else if (searchFilters.stage === 'WABI SABI') {
-          table = 'wabi_sabi_data';
-        }
+        // Always use default table (master_station_data)
         const [skusRes, sizesRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/skus?table=${table}`),
-          fetch(`${BACKEND_URL}/sizes?table=${table}`)
+          fetch(`${BACKEND_URL}/skus`),
+          fetch(`${BACKEND_URL}/sizes`)
         ]);
 
         if (skusRes.ok) setSkusList(await skusRes.json());
@@ -89,7 +84,7 @@ const Search: React.FC = () => {
       }
     };
     fetchFilterOptions();
-  }, [searchFilters.stage]);
+  }, []); // Run once, not dependent on stage anymore
 
   const buildSearchParams = (page = 1, download = false) => {
     const params = new URLSearchParams();
@@ -104,6 +99,7 @@ const Search: React.FC = () => {
     if (searchFilters.moNumbers.trim()) params.append('mo_numbers', searchFilters.moNumbers.replace(/\n/g, ','));
     if (searchFilters.stage && searchFilters.stage !== 'All') params.append('stage', searchFilters.stage);
     if (searchFilters.vendor && searchFilters.vendor !== 'all') params.append('vendor', searchFilters.vendor);
+    if (searchFilters.line && searchFilters.line !== 'All') params.append('line', searchFilters.line);
     
     searchFilters.selectedSizes.forEach(s => params.append('size', s));
     searchFilters.selectedSkus.forEach(s => params.append('sku', s));
@@ -232,6 +228,7 @@ const Search: React.FC = () => {
       selectedStatuses: [],
       selectedReasons: [],
       dateRange: { from: null, to: null },
+      line: 'All',
     });
     setSearchResults({
       data: [],
@@ -306,6 +303,21 @@ const Search: React.FC = () => {
 
               {/* Dropdowns & Pickers */}
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="font-semibold">Line</Label>
+                  <Select value={searchFilters.line} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, line: val }))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Line" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Lines</SelectItem>
+                      {lines.map(line => (
+                        <SelectItem key={line} value={line}>{line}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label className="font-semibold">Stage</Label>
                   <Select value={searchFilters.stage} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, stage: val }))}>
