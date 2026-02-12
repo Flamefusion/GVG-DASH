@@ -305,7 +305,11 @@ const Search: React.FC = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="font-semibold">Line</Label>
-                  <Select value={searchFilters.line} onValueChange={(val) => setSearchFilters(prev => ({ ...prev, line: val }))}>
+                  <Select value={searchFilters.line} onValueChange={(val) => {
+                    const options = val === 'WABI SABI' ? ['FT', 'CS'] : (val === 'All' ? ['All', 'VQC', 'FT', 'CS', 'RT', 'WABI SABI'] : ['VQC', 'FT', 'CS']);
+                    const newStage = options.includes(searchFilters.stage) ? searchFilters.stage : options[0];
+                    setSearchFilters(prev => ({ ...prev, line: val, stage: newStage }));
+                  }}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Line" />
                     </SelectTrigger>
@@ -325,7 +329,7 @@ const Search: React.FC = () => {
                       <SelectValue placeholder="Select Stage" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['All', 'VQC', 'FT', 'CS', 'RT', 'WABI SABI'].map(s => (
+                      {(searchFilters.line === 'WABI SABI' ? ['FT', 'CS'] : (searchFilters.line === 'All' ? ['All', 'VQC', 'FT', 'CS', 'RT', 'WABI SABI'] : ['VQC', 'FT', 'CS'])).map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>

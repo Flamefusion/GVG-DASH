@@ -56,11 +56,21 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
     }));
   };
 
-  const getStageOptions = () => {
-    if (reportFilters.line === 'WABI SABI') {
-      return ['FT', 'CS']; // Assuming Wabi Sabi has no VQC
+  const getStageOptions = (line: string) => {
+    const upperLine = line.toUpperCase();
+    if (upperLine === 'WABI SABI') {
+      return ['FT', 'CS'];
     }
-    return ['VQC', 'FT', 'RT', 'RT CS', 'WABI SABI'];
+    if (upperLine === 'PRODUCTION' || upperLine === 'RT CONV' || upperLine === 'RT CONVERSION') {
+      return ['VQC', 'FT', 'CS'];
+    }
+    return ['VQC', 'FT', 'CS', 'RT', 'RT CS', 'WABI SABI'];
+  };
+
+  const handleLineChange = (value: string) => {
+    const options = getStageOptions(value);
+    const newStage = options.includes(reportFilters.stage) ? reportFilters.stage : options[0];
+    setReportFilters({ ...reportFilters, line: value, stage: newStage });
   };
 
   const isVendorDisabled = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(reportFilters.stage);
@@ -170,7 +180,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
         </PopoverContent>
       </Popover>
 
-      <Select value={reportFilters.line} onValueChange={(line) => setReportFilters({ ...reportFilters, line })}>
+      <Select value={reportFilters.line} onValueChange={handleLineChange}>
         <SelectTrigger className="w-32">
           <SelectValue placeholder="Line" />
         </SelectTrigger>
@@ -184,7 +194,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = () => {
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
         <SelectContent>
-          {getStageOptions().map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          {getStageOptions(reportFilters.line).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
         </SelectContent>
       </Select>
 
