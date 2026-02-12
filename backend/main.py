@@ -15,8 +15,6 @@ class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
     BIGQUERY_DATASET_ID: str = 'dashboard_data'
     BIGQUERY_TABLE_ID: str = 'master_station_data'
-    RT_CONVERSION_TABLE_ID: str = 'rt_conversion_data'
-    WABI_SABI_TABLE_ID: str = 'wabi_sabi_data'
     RING_STATUS_TABLE_ID: str = 'ring_status'
     REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
     USERS_TABLE_ID: str = 'users'
@@ -57,8 +55,6 @@ app.add_middleware(
 try:
     client = bigquery.Client(project=settings.BIGQUERY_PROJECT_ID)
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
-    RT_CONVERSION_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.RT_CONVERSION_TABLE_ID}`"
-    WABI_SABI_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.WABI_SABI_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'ring_status')}`"
     REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'rejection_analysis')}`"
     USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.USERS_TABLE_ID}`"
@@ -67,8 +63,6 @@ except Exception as e:
     print(f"Error initializing BigQuery client: {e}")
     client = None
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
-    RT_CONVERSION_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.RT_CONVERSION_TABLE_ID}`"
-    WABI_SABI_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.WABI_SABI_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.ring_status`"
     REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.rejection_analysis`"
     USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.users`"
@@ -122,7 +116,7 @@ def read_root():
     return {"message": "GVG Dashboard Backend is running"}
 
 @app.get("/analysis")
-async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), stage: Optional[str] = None, date_column: str = 'vqc_inward_date'):
+async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), stage: Optional[str] = None, date_column: str = 'vqc_inward_date', line: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     
@@ -131,16 +125,8 @@ async def get_analysis(start_date: Optional[date] = None, end_date: Optional[dat
     size_col = 'size'
     date_col = date_column
 
-    if stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
-        sku_col = 'sku'
-        size_col = 'size'
-        date_col = 'inward_date'
-    elif stage == 'RT':
-        table_to_use = RT_CONVERSION_TABLE
-
     try:
-        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col)
+        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col, line)
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
@@ -152,17 +138,18 @@ async def get_report(
     stage: str = Query('VQC', description="Stage: VQC, FT, or WABI SABI"),
     vendor: str = Query('all', description="Vendor name"),
     sizes: Optional[List[str]] = Query(None, alias="size"),
-    skus: Optional[List[str]] = Query(None, alias="sku")
+    skus: Optional[List[str]] = Query(None, alias="sku"),
+    line: Optional[str] = None
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     
     table_to_use = RING_STATUS_TABLE
-    if stage == 'WABI SABI':
-        table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.wabi_sabi_status`"
-
+    # Assuming Wabi Sabi data (if separate) is now merged or handled appropriately in ring_status
+    # If there are specific table requirements for Wabi Sabi reports, adjustments might be needed here.
+    
     try:
-        data = get_report_data(client, table_to_use, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus)
+        data = get_report_data(client, table_to_use, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus, line)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
@@ -173,123 +160,82 @@ async def get_rejection_report(
     end_date: Optional[date] = None, 
     vendor: str = Query('all', description="Vendor name"),
     sizes: Optional[List[str]] = Query(None, alias="size"),
-    skus: Optional[List[str]] = Query(None, alias="sku")
+    skus: Optional[List[str]] = Query(None, alias="sku"),
+    line: Optional[str] = None
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus)
+        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus, line)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
 
 @app.get("/kpis")
-async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    table_to_use = TABLE
-    sku_col = 'sku'
-    size_col = 'size'
-    date_col = date_column
+    # Use dash_overview for aggregated KPIs.
+    # Note: dash_overview does not have SKU/Size columns.
+    # If filters include SKU/Size, this view returns global data (ignoring SKU/Size filters) or we must fallback to master_station_data.
+    # User said "use views". Assuming overview level data is desired even if filters are present, OR filters apply to charts only.
+    # However, build_where_clause generates WHERE clauses.
+    # We will build a clause for the VIEW (only Date and Line).
+    
+    # Construct overview table name
+    overview_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.dash_overview`"
+    
+    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
 
-    if stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
-        sku_col = 'sku'
-        size_col = 'size'
-        date_col = 'inward_date'
-    elif stage in ['RT', 'RT CS']:
-        table_to_use = RT_CONVERSION_TABLE
-
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col)
-
-    if stage == 'WABI SABI':
-        query = f"""
-        WITH KpiMetrics AS (
-            SELECT
-                COUNT(DISTINCT serial_number) AS total_inward,
-                COUNT(DISTINCT CASE WHEN ws_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
-                COUNT(DISTINCT CASE WHEN ws_status = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
-                COUNT(DISTINCT CASE WHEN ws_status = 'REJECTED' OR cs_status = 'REJECTED' THEN serial_number END) AS total_rejected,
-                COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory
-            FROM {table_to_use}
-            {where_clause_str}
-        )
+    # Base query on dash_overview
+    query = f"""
         SELECT
-            total_inward,
-            qc_accepted,
-            testing_accepted,
-            total_rejected,
-            moved_to_inventory,
-            (total_inward - total_rejected - moved_to_inventory) AS work_in_progress
-        FROM KpiMetrics
-        """
-    elif stage in ['RT', 'RT CS']:
-        query = f"""
-        WITH KpiMetrics AS (
-            SELECT
-                COUNT(DISTINCT CASE WHEN vqc_inward_date IS NOT NULL THEN serial_number END) AS total_inward,
-                COUNT(DISTINCT CASE WHEN vqc_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
-                COUNT(DISTINCT CASE WHEN ft_status = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
-                
-                COUNT(DISTINCT CASE WHEN vqc_status = 'SCRAP' AND vqc_reason IS NOT NULL THEN serial_number END) +
-                COUNT(DISTINCT CASE WHEN ft_status = 'REJECTED' AND ft_reason IS NOT NULL THEN serial_number END) +
-                COUNT(DISTINCT CASE WHEN cs_status = 'REJECTED' THEN serial_number END) AS total_rejected,
+            SUM(total_inward) AS total_inward,
+            SUM(qc_accepted) AS qc_accepted,
+            SUM(testing_accepted) AS testing_accepted,
+            SUM(total_rejection) AS total_rejected,
+            SUM(moved_to_inventory) AS moved_to_inventory,
+            SUM(work_in_progress) AS work_in_progress
+        FROM {overview_table}
+        {where_clause_str}
+    """
+    
+    # If specific stage is requested, we should filter by stage in the view
+    if stage:
+        # Map frontend stage names to view stage names if different
+        # View has 'VQC', 'FT', 'CS'.
+        # Frontend might send 'RT', 'RT CS', 'WABI SABI'.
+        # For 'RT'/'RT CS'/'WABI SABI', these are statuses or lines, not just stages in the view logic.
+        # But wait, `dash_overview` has `line` column.
+        # If line is 'WABI SABI', stage can be 'FT' or 'CS'.
+        # If stage param is passed, it acts as a filter.
+        # However, `dash_overview` 'stage' column only has VQC, FT, CS.
+        # If user selects stage='RT', what does it mean? RT is a Line usually?
+        # In the new model, RT is a line.
+        # If user passes stage='RT', and line='RT', then we just filter by line.
+        # If user passes stage='VQC' and line='Production', we filter stage='VQC'.
+        
+        # Adjust query to include stage filter if it matches view stages
+        if stage in ['VQC', 'FT', 'CS']:
+             if where_clause_str:
+                 query += f" AND stage = @stage_param"
+             else:
+                 query += f" WHERE stage = @stage_param"
+             query_parameters.append(ScalarQueryParameter("stage_param", "STRING", stage))
+        
+        # If stage is 'WABI SABI' or 'RT', usually handled by Line filter now. 
+        # But if frontend still sends stage='WABI SABI' (legacy), we might want to map it or ignore if Line is set.
+        # Assuming frontend updates send Line properly.
 
-                COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory,
-
-                COUNT(DISTINCT CASE WHEN vqc_inward_date IS NOT NULL AND ft_inward_date IS NULL THEN serial_number END) +
-                COUNT(DISTINCT CASE WHEN ft_inward_date IS NOT NULL AND cs_comp_date IS NULL AND cs_status IS NULL THEN serial_number END) AS work_in_progress
-                
-            FROM {table_to_use}
-            {where_clause_str}
-        )
-        SELECT
-            total_inward,
-            qc_accepted,
-            testing_accepted,
-            total_rejected,
-            moved_to_inventory,
-            (total_inward - total_rejected - moved_to_inventory) AS work_in_progress
-        FROM KpiMetrics
-        """
-    else:
-        query = f"""
-        WITH KpiMetrics AS (
-            SELECT
-                COUNT(DISTINCT serial_number) AS total_inward,
-                
-                COUNT(DISTINCT CASE WHEN vqc_status = 'ACCEPTED' THEN serial_number END) AS qc_accepted,
-                
-                COUNT(DISTINCT CASE WHEN UPPER(ft_status) = 'ACCEPTED' THEN serial_number END) AS testing_accepted,
-                
-                COUNT(DISTINCT CASE 
-                    WHEN UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') THEN serial_number
-                    WHEN UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') THEN serial_number
-                    WHEN UPPER(cs_status) = 'REJECTED' THEN serial_number
-                    ELSE NULL
-                END) AS total_rejected,
-
-                COUNT(DISTINCT CASE WHEN cs_status = 'ACCEPTED' THEN serial_number END) AS moved_to_inventory
-                
-            FROM {table_to_use}
-            {where_clause_str}
-        )
-        SELECT
-            total_inward,
-            qc_accepted,
-            testing_accepted,
-            total_rejected,
-            moved_to_inventory,
-            (total_inward - total_rejected - moved_to_inventory) AS work_in_progress
-        FROM KpiMetrics
-        """
     try:
         job_config = QueryJobConfig(query_parameters=query_parameters)
         query_job = client.query(query, job_config=job_config)
         results = query_job.result()
         kpis = [dict(row) for row in results]
-        return kpis[0] if kpis else {}
+        # Handle case where sum is None
+        result = kpis[0] if kpis else {}
+        return {k: (v if v is not None else 0) for k, v in result.items()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPIs: {e}")
 
@@ -307,7 +253,7 @@ def combine_where_clauses(base_clause_str, base_params, additional_conditions):
     return "", base_params
 
 @app.get("/charts")
-async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -316,42 +262,27 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     size_col = 'size'
     date_col = date_column
 
-    if stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
-        sku_col = 'sku'
-        size_col = 'size'
-        date_col = 'inward_date'
-    elif stage in ['RT', 'RT CS']:
-        table_to_use = RT_CONVERSION_TABLE
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col, line)
 
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col)
+    vqc_wip_conditions = [
+        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
+        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
+        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
+        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
+        "vqc_inward_date IS NOT NULL",
+        "ft_inward_date IS NULL"
+    ]
+    vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, vqc_wip_conditions)
 
-    if stage in ['RT', 'RT CS']:
-        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, [f"{date_col} IS NOT NULL", "ft_inward_date IS NULL", "(vqc_status != 'SCRAP' OR vqc_status IS NULL)"])
-        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["ft_inward_date IS NOT NULL", "cs_comp_date IS NULL", "(ft_status != 'REJECTED' OR ft_status IS NULL)", "(cs_status != 'REJECTED' OR cs_status IS NULL)"])
-    elif stage == 'WABI SABI':
-        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ["cs_status IS NULL", "ws_status IS NULL"])
-        ft_wip_where_clause_str = "WHERE 1=0"
-    else:
-        vqc_wip_conditions = [
-            "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
-            "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
-            "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
-            "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
-            "vqc_inward_date IS NOT NULL",
-            "ft_inward_date IS NULL"
-        ]
-        vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, vqc_wip_conditions)
-
-        ft_wip_conditions = [
-            "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
-            "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
-            "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
-            "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
-            "vqc_inward_date IS NOT NULL",
-            "ft_inward_date IS NOT NULL"
-        ]
-        ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ft_wip_conditions)
+    ft_wip_conditions = [
+        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
+        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
+        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
+        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
+        "vqc_inward_date IS NOT NULL",
+        "ft_inward_date IS NOT NULL"
+    ]
+    ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ft_wip_conditions)
 
     vqc_wip_query = f"""
     SELECT {sku_col} as sku, COUNT(DISTINCT serial_number) AS count
@@ -389,18 +320,7 @@ async def get_skus(table: str = 'master_station_data'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    allowed_tables = [
-        settings.BIGQUERY_TABLE_ID,
-        settings.RT_CONVERSION_TABLE_ID,
-        settings.RING_STATUS_TABLE_ID,
-        settings.REJECTION_ANALYSIS_TABLE_ID,
-        settings.WABI_SABI_TABLE_ID
-    ]
-
-    if table not in allowed_tables:
-        raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
-    
-    table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
+    table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
     sku_col = 'sku'
     
     query = f"SELECT DISTINCT {sku_col} as sku FROM {table_to_use} WHERE {sku_col} IS NOT NULL ORDER BY sku"
@@ -416,18 +336,7 @@ async def get_sizes(table: str = 'master_station_data'):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    allowed_tables = [
-        settings.BIGQUERY_TABLE_ID,
-        settings.RT_CONVERSION_TABLE_ID,
-        settings.RING_STATUS_TABLE_ID,
-        settings.REJECTION_ANALYSIS_TABLE_ID,
-        settings.WABI_SABI_TABLE_ID
-    ]
-
-    if table not in allowed_tables:
-        raise HTTPException(status_code=400, detail=f"Invalid table name: {table}. Allowed tables are: {', '.join(allowed_tables)}")
-
-    table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{table}`"
+    table_to_use = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
     size_col = 'size'
 
     query = f"SELECT DISTINCT {size_col} as size FROM {table_to_use} WHERE {size_col} IS NOT NULL ORDER BY size"
@@ -437,6 +346,18 @@ async def get_sizes(table: str = 'master_station_data'):
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error querying BigQuery for sizes: {e}")
+
+@app.get("/lines")
+async def get_lines():
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    query = f"SELECT DISTINCT line FROM {TABLE} WHERE line IS NOT NULL ORDER BY line"
+    try:
+        query_job = client.query(query)
+        results = [row['line'] for row in query_job.result()]
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for lines: {e}")
 
 @app.get("/vendors")
 async def get_vendors():
@@ -468,7 +389,7 @@ async def get_last_updated():
 
 
 @app.get("/kpi-data/{kpi_name}")
-async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), download: bool = False, date_column: str = 'vqc_inward_date', stage: Optional[str] = None):
+async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), download: bool = False, date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -477,66 +398,29 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
     size_col = 'size'
     date_col = date_column
 
-    if stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
-        sku_col = 'sku'
-        size_col = 'size'
-        date_col = 'inward_date'
-    elif stage in ['RT', 'RT CS']:
-        table_to_use = RT_CONVERSION_TABLE
-
-    if stage == 'WABI SABI':
-        kpi_conditions = {
-            'total_inward': f"{date_col} IS NOT NULL",
-            'qc_accepted': "ws_status = 'ACCEPTED'",
-            'testing_accepted': "ws_status = 'ACCEPTED'",
-            'total_rejected': "ws_status = 'REJECTED' OR cs_status = 'REJECTED'",
-            'moved_to_inventory': "cs_status = 'ACCEPTED'",
-            'work_in_progress': "cs_status IS NULL AND ws_status IS NULL"
-        }
-    elif stage in ['RT', 'RT CS']:
-        kpi_conditions = {
-            'total_inward': "serial_number IS NOT NULL",
-            'qc_accepted': "vqc_status = 'ACCEPTED'",
-            'testing_accepted': "UPPER(ft_status) = 'ACCEPTED'",
-            'total_rejected': """
-                (UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') AND vqc_reason IS NOT NULL) OR
-                (UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') AND ft_reason IS NOT NULL) OR
-                (UPPER(cs_status) = 'REJECTED' AND cs_reason IS NOT NULL)
-            """,
-            'moved_to_inventory': "cs_status = 'ACCEPTED'",
-            'work_in_progress': """
-                (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
-                (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
-                (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
-                (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
-                serial_number IS NOT NULL
-            """
-        }
-    else:
-        kpi_conditions = {
-            'total_inward': "serial_number IS NOT NULL",
-            'qc_accepted': "vqc_status = 'ACCEPTED'",
-            'testing_accepted': "UPPER(ft_status) = 'ACCEPTED'",
-            'total_rejected': """
-                UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR
-                UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
-                UPPER(cs_status) = 'REJECTED'
-            """,
-            'moved_to_inventory': "cs_status = 'ACCEPTED'",
-            'work_in_progress': """
-                (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
-                (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
-                (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
-                (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
-                vqc_inward_date IS NOT NULL
-            """
-        }
+    kpi_conditions = {
+        'total_inward': "serial_number IS NOT NULL",
+        'qc_accepted': "vqc_status = 'ACCEPTED'",
+        'testing_accepted': "UPPER(ft_status) = 'ACCEPTED'",
+        'total_rejected': """
+            UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR
+            UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+            UPPER(cs_status) = 'REJECTED'
+        """,
+        'moved_to_inventory': "cs_status = 'ACCEPTED'",
+        'work_in_progress': """
+            (UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL) AND
+            (UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL) AND
+            (UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL) AND
+            (UPPER(cs_status) != 'ACCEPTED' OR cs_status IS NULL) AND
+            vqc_inward_date IS NOT NULL
+        """
+    }
 
     if kpi_name not in kpi_conditions:
         raise HTTPException(status_code=404, detail="KPI name not found")
 
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col)
+    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col, line)
     kpi_where_condition = kpi_conditions[kpi_name]
 
     if base_where_clause_str:
@@ -545,8 +429,6 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
         full_where_clause = f"WHERE {kpi_where_condition}"
     
     select_clause = "*"
-    if stage == 'WABI SABI':
-        select_clause = f"*, {sku_col} as sku, {size_col} as size, {date_col} as vqc_inward_date"
 
     offset = (page - 1) * limit
 
@@ -557,14 +439,14 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
             SELECT {select_clause}
             FROM {table_to_use}
             {full_where_clause}
-            ORDER BY {date_col} DESC
+            ORDER BY {date_column} DESC
         """
     else:
         data_query = f"""
             SELECT {select_clause}
             FROM {table_to_use}
             {full_where_clause}
-            ORDER BY {date_col} DESC
+            ORDER BY {date_column} DESC
             LIMIT {limit} OFFSET {offset}
         """
 
@@ -596,7 +478,7 @@ async def search_data(
     page: int = 1,
     limit: int = 100,
     serial_numbers: Optional[str] = Query(None, description="Comma-separated serial numbers"),
-    stage: str = Query('All', description="Stage: VQC, FT, CS, RT, All"),
+    stage: str = Query('All', description="Stage: VQC, FT, CS, All"),
     vendor: Optional[str] = None,
     vqc_status: Optional[List[str]] = Query(None),
     rejection_reasons: Optional[List[str]] = Query(None),
@@ -605,6 +487,7 @@ async def search_data(
     skus: Optional[List[str]] = Query(None, alias="sku"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    line: Optional[str] = None,
     download: bool = False,
 ):
     if not client:
@@ -616,50 +499,17 @@ async def search_data(
     sku_column = 'sku'
     size_column = 'size'
 
-    if stage == 'RT':
-        table_to_use = RT_CONVERSION_TABLE
-        date_column = 'vqc_inward_date'
-    elif stage == 'FT':
+    if stage == 'FT':
         date_column = 'ft_inward_date'
     elif stage == 'CS':
         date_column = 'cs_comp_date'
-    elif stage == 'WABI SABI':
-        table_to_use = WABI_SABI_TABLE
-        date_column = 'inward_date'
-        sku_column = 'sku'
-        size_column = 'size'
-    elif stage == 'All':
-        # Create a unified subquery for all tables as requested
-        table_to_use = f"""(
-            SELECT 
-                serial_number, vendor, size, sku, 
-                vqc_status, ft_status, cs_status, 
-                vqc_reason, ft_reason, cs_reason, 
-                ctpf_mo, air_mo, vqc_inward_date, ft_inward_date, cs_comp_date
-            FROM {TABLE}
-            UNION ALL
-            SELECT 
-                serial_number, CAST(NULL AS STRING) as vendor, size, sku, 
-                vqc_status, ft_status, cs_status, 
-                vqc_reason, ft_reason, cs_reason, 
-                ctpf_po as ctpf_mo, air_mo, vqc_inward_date, ft_inward_date, cs_comp_date
-            FROM {RT_CONVERSION_TABLE}
-            UNION ALL
-            SELECT 
-                serial_number, CAST(NULL AS STRING) as vendor, size, sku, 
-                ws_status as vqc_status, CAST(NULL AS STRING) as ft_status, cs_status, 
-                ws_reason as vqc_reason, CAST(NULL AS STRING) as ft_reason, cs_reason, 
-                mo_nmber as ctpf_mo, CAST(NULL AS STRING) as air_mo, inward_date as vqc_inward_date, CAST(NULL AS DATE) as ft_inward_date, CAST(cs_comp_date AS DATE) as cs_comp_date
-            FROM {WABI_SABI_TABLE}
-        )"""
-        date_column = 'vqc_inward_date'
-
+    
+    # Unified Query Construction
     conditions = []
     query_parameters = []
 
     # 1. Serial Numbers (Bulk Search)
     if serial_numbers:
-        # Split by comma, strip whitespace, and filter empty strings
         sn_list = [sn.strip() for sn in serial_numbers.split(',') if sn.strip()]
         if sn_list:
             conditions.append(f"serial_number IN UNNEST(@serial_numbers)")
@@ -672,7 +522,7 @@ async def search_data(
         query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
 
     # 3. Vendor
-    if vendor and vendor.lower() != 'all' and stage != 'WABI SABI':
+    if vendor and vendor.lower() != 'all':
         conditions.append("vendor = @vendor")
         query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
 
@@ -686,10 +536,6 @@ async def search_data(
             conditions.append("ft_status IN UNNEST(@vqc_status_list)")
         elif stage == 'CS':
             conditions.append("cs_status IN UNNEST(@vqc_status_list)")
-        elif stage == 'RT':
-            conditions.append("(vqc_status IN UNNEST(@vqc_status_list) OR ft_status IN UNNEST(@vqc_status_list) OR cs_status IN UNNEST(@vqc_status_list))")
-        elif stage == 'WABI SABI':
-            conditions.append("ws_status IN UNNEST(@vqc_status_list)")
         else:
             conditions.append("vqc_status IN UNNEST(@vqc_status_list)")
         query_parameters.append(ArrayQueryParameter("vqc_status_list", "STRING", vqc_status))
@@ -704,10 +550,6 @@ async def search_data(
             conditions.append("ft_reason IN UNNEST(@rejection_reasons)")
         elif stage == 'CS':
             conditions.append("cs_reason IN UNNEST(@rejection_reasons)")
-        elif stage == 'RT':
-            conditions.append("(vqc_reason IN UNNEST(@rejection_reasons) OR ft_reason IN UNNEST(@rejection_reasons) OR cs_reason IN UNNEST(@rejection_reasons))")
-        elif stage == 'WABI SABI':
-            conditions.append("ws_reason IN UNNEST(@rejection_reasons)")
         else:
             conditions.append("(vqc_reason IN UNNEST(@rejection_reasons) OR ft_reason IN UNNEST(@rejection_reasons) OR cs_reason IN UNNEST(@rejection_reasons))")
         query_parameters.append(ArrayQueryParameter("rejection_reasons", "STRING", rejection_reasons))
@@ -716,15 +558,8 @@ async def search_data(
     if mo_numbers:
         mo_list = [mo.strip() for mo in mo_numbers.split(',') if mo.strip()]
         if mo_list:
-            if stage == 'All':
-                conditions.append("(ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
-            elif stage == 'RT':
-                conditions.append("(ctpf_po IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
-            elif stage == 'WABI SABI':
-                conditions.append("mo_nmber IN UNNEST(@mo_list)")
-            else:
-                conditions.append("(ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
-            query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
+             conditions.append("(ctpf_mo IN UNNEST(@mo_list) OR air_mo IN UNNEST(@mo_list))")
+             query_parameters.append(ArrayQueryParameter("mo_list", "STRING", mo_list))
 
     # 7. Sizes (Multi-select)
     if sizes:
@@ -736,12 +571,15 @@ async def search_data(
         conditions.append(f"{sku_column} IN UNNEST(@skus_list)")
         query_parameters.append(ArrayQueryParameter("skus_list", "STRING", skus))
 
+    # 9. Line
+    if line:
+        conditions.append("line = @line")
+        query_parameters.append(ScalarQueryParameter("line", "STRING", line))
+
     # Construct WHERE clause
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     select_clause = "*"
-    if stage == 'WABI SABI':
-        select_clause = f"*, {sku_column} as sku, {size_column} as size, {date_column} as vqc_inward_date, ws_status as vqc_status, ws_reason as vqc_reason"
 
     # Pagination
     offset = (page - 1) * limit

@@ -5,6 +5,7 @@ export interface DashboardFilters {
   selectedSizes: string[];
   selectedSkus: string[];
   stage: string;
+  line: string;
 }
 
 export interface KPI {
@@ -59,6 +60,7 @@ export interface ReportFilters {
   reportType: 'Daily' | 'Rejection';
   selectedSizes: string[];
   selectedSkus: string[];
+  line: string;
 }
 
 export interface SearchFilters {
@@ -71,6 +73,7 @@ export interface SearchFilters {
   selectedStatuses: string[];
   selectedReasons: string[];
   dateRange: { from: Date | null; to: Date | null };
+  line: string;
 }
 
 export interface SearchResults {
@@ -101,6 +104,7 @@ interface DashboardContextType {
   analysisData: AnalysisData | null;
   skus: string[];
   sizes: string[];
+  lines: string[];
   loading: boolean;
   error: string | null;
 }
@@ -125,6 +129,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     selectedSizes: [],
     selectedSkus: [],
     stage: 'VQC',
+    line: 'Production',
   });
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
     dateRange: { from: null, to: null },
@@ -133,6 +138,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     reportType: 'Daily',
     selectedSizes: [],
     selectedSkus: [],
+    line: 'Production',
   });
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     serialNumbers: '',
@@ -144,6 +150,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     selectedStatuses: [],
     selectedReasons: [],
     dateRange: { from: null, to: null },
+    line: 'All',
   });
   const [searchResults, setSearchResults] = useState<SearchResults>({
     data: [],
@@ -159,6 +166,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [skus, setSkus] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
+  const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,6 +203,9 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (currentFilters.selectedSkus && currentFilters.selectedSkus.length > 0) {
       currentFilters.selectedSkus.forEach(s => params.append('sku', s));
     }
+    if (currentFilters.line) {
+      params.append('line', currentFilters.line);
+    }
     if (currentFilters.stage) {
       params.append('stage', currentFilters.stage);
       let date_column = 'vqc_inward_date';
@@ -202,16 +213,9 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         date_column = 'ft_inward_date';
       } else if (currentFilters.stage === 'CS' || currentFilters.stage === 'RT CS') {
         date_column = 'cs_comp_date';
-      } else if (currentFilters.stage === 'WABI SABI') {
-        date_column = 'inward_date';
       }
+      // WABI SABI logic for date column is now handled backend side or default
       params.append('date_column', date_column);
-
-      if (currentFilters.stage === 'RT' || currentFilters.stage === 'RT CS') {
-        params.append('table', 'rt_conversion_data');
-      } else if (currentFilters.stage === 'WABI SABI') {
-        params.append('table', 'wabi_sabi_data');
-      }
     }
     const queryString = params.toString();
 
@@ -244,32 +248,28 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const fetchFilterOptions = useCallback(async () => {
     try {
-      let table = 'master_station_data';
-      if (filters.stage === 'RT' || filters.stage === 'RT CS') {
-        table = 'rt_conversion_data';
-      } else if (filters.stage === 'WABI SABI') {
-        table = 'wabi_sabi_data';
-      }
-      const params = new URLSearchParams({ table });
-      const queryString = params.toString();
-
-      const [skusResponse, sizesResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/skus?${queryString}`),
-        fetch(`${BACKEND_URL}/sizes?${queryString}`),
+      // No need to pass table param anymore
+      const [skusResponse, sizesResponse, linesResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/skus`),
+        fetch(`${BACKEND_URL}/sizes`),
+        fetch(`${BACKEND_URL}/lines`),
       ]);
       if (!skusResponse.ok) throw new Error('Failed to fetch SKUs');
       if (!sizesResponse.ok) throw new Error('Failed to fetch sizes');
+      if (!linesResponse.ok) throw new Error('Failed to fetch lines');
       
       const skusData = await skusResponse.json();
       const sizesData = await sizesResponse.json();
+      const linesData = await linesResponse.json();
 
-      setSkus(skusData.filter(s => s));
-      setSizes(sizesData.filter(s => s));
+      setSkus(skusData.filter((s: string) => s));
+      setSizes(sizesData.filter((s: string) => s));
+      setLines(linesData.filter((s: string) => s));
     } catch (err) {
       console.error("Failed to fetch filter options:", err);
       setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [filters.stage]);
+  }, []);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -337,6 +337,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         analysisData,
         skus,
         sizes,
+        lines,
         loading,
         error,
       }}

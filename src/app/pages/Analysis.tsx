@@ -36,7 +36,7 @@ const Analysis: React.FC = () => {
   if (!analysisData) return <div className="p-8">No analysis data available.</div>;
 
   const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
-  const isWabiSabi = filters.stage === 'WABI SABI';
+  const isWabiSabi = filters.line === 'WABI SABI';
 
   const kpiCards = [
     {
