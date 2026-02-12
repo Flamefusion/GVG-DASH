@@ -150,7 +150,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     selectedStatuses: [],
     selectedReasons: [],
     dateRange: { from: null, to: null },
-    line: 'All',
+    line: 'Production',
   });
   const [searchResults, setSearchResults] = useState<SearchResults>({
     data: [],

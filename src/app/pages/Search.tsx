@@ -228,7 +228,7 @@ const Search: React.FC = () => {
       selectedStatuses: [],
       selectedReasons: [],
       dateRange: { from: null, to: null },
-      line: 'All',
+      line: 'Production',
     });
     setSearchResults({
       data: [],
