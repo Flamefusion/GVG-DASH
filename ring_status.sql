@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.ring_status` AS
+CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.ring_status_test` AS
 SELECT
   COALESCE(v.date, f.date) AS date,
   -- VQC Metrics
@@ -34,5 +34,6 @@ SELECT
   -- Total Rejection Calculation
   (IFNULL(v.vqc_rejection_legacy, 0) + IFNULL(v.ft_rejection_on_vqc_date, 0) + IFNULL(v.cs_rejection, 0)) AS TOTAL_REJECTION
 
-FROM `production-dashboard-482014.dashboard_data.ring_status_vqc_mv` v
-FULL OUTER JOIN `production-dashboard-482014.dashboard_data.ring_status_ft_mv` f ON v.date = f.date;
+FROM `production-dashboard-482014.dashboard_data.ring_status_vqc_mv_test` v
+
+FULL OUTER JOIN `production-dashboard-482014.dashboard_data.ring_status_ft_mv_test` f ON v.date = f.date;

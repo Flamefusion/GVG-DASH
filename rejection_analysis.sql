@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.rejection_analysis`
+CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.rejection_analysis_test`
 AS
 SELECT
   COALESCE(
@@ -19,7 +19,7 @@ SELECT
   END AS rejection_category,
   COUNT(*) AS count
 FROM
-  `production-dashboard-482014.dashboard_data.master_station_data`
+  `production-dashboard-482014.dashboard_data.master_station_data_test`
 WHERE
   vqc_inward_date IS NOT NULL
   AND vqc_reason IS NOT NULL

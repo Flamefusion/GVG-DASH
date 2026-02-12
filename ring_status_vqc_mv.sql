@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.ring_status_vqc_mv`
+CREATE OR REPLACE VIEW `production-dashboard-482014.dashboard_data.ring_status_vqc_mv_test`
 AS
 SELECT
   -- Try parsing multiple formats: YYYY-MM-DD, DD-MM-YYYY, DD-MM-YY
@@ -37,6 +37,7 @@ SELECT
   COUNTIF(vqc_status IN ('RT CONVERSION', 'WABI SABI', 'SCRAP')) AS vqc_rejection_legacy,
   COUNTIF(ft_reason IS NOT NULL) AS ft_rejection_on_vqc_date,
   COUNTIF(cs_status = 'REJECTED') AS cs_rejection
-FROM `production-dashboard-482014.dashboard_data.master_station_data`
-WHERE vqc_inward_date IS NOT NULL
+FROM `production-dashboard-482014.dashboard_data.master_station_data_test`
+WHERE
+ vqc_inward_date IS NOT NULL
 GROUP BY 1
