@@ -11,7 +11,7 @@ import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Checkbox } from '@/app/components/ui/checkbox';
 
 interface ReportFiltersProps {
-  onApply: () => void;
+  onApply: (filters: IReportFilters) => void;
 }
 
 export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
@@ -81,7 +81,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
 
   const handleApply = () => {
     setReportFilters(localFilters);
-    onApply();
+    onApply(localFilters);
   };
 
   const isVendorDisabled = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(localFilters.stage);
