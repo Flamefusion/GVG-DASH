@@ -28,6 +28,7 @@ SELECT
     stage,
     sku,
     size,
+    vendor,
     COUNT(*) AS total_inward,
     
     -- Funnel Metrics: Tracks the cohort's progress through all stages
@@ -80,4 +81,4 @@ SELECT
     SAFE_DIVIDE(COUNTIF(cs_status = 'ACCEPTED'), COUNT(*)) AS yield
 
 FROM single_scan_funnel
-GROUP BY 1, 2, 3, 4, 5;
+GROUP BY 1, 2, 3, 4, 5, 6;

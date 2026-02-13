@@ -132,7 +132,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     line: 'Production',
   });
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
-    dateRange: { from: null, to: null },
+    dateRange: getMonthDateRange(),
     vendor: 'all',
     stage: 'VQC',
     reportType: 'Daily',
