@@ -18,9 +18,9 @@ load_dotenv()
 class Settings(BaseSettings):
     BIGQUERY_PROJECT_ID: str = 'production-dashboard-482014'
     BIGQUERY_DATASET_ID: str = 'dashboard_data'
-    BIGQUERY_TABLE_ID: str = 'master_station_data_test'
+    BIGQUERY_TABLE_ID: str = 'master_station_data'
     RING_STATUS_TABLE_ID: str = 'ring_status'
-    REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis_test'
+    REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
     USERS_TABLE_ID: str = 'users'
 
 settings = Settings()
@@ -188,7 +188,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     # We will build a clause for the VIEW (only Date and Line).
     
     # Construct overview table name
-    overview_table_name = 'dash_overview_test' if 'test' in settings.BIGQUERY_TABLE_ID else 'dash_overview'
+    overview_table_name = 'dash_overview' if 'test' in settings.BIGQUERY_TABLE_ID else 'dash_overview'
     overview_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{overview_table_name}`"
     
     # Default to 'VQC' if stage is invalid for the overview table to avoid double counting

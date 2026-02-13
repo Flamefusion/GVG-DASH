@@ -1,6 +1,6 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis_test` AS
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis` AS
 WITH rejection_unpivoted AS (
-    -- Single scan approach similar to dash_overview_test
+    -- Single scan approach similar to dash_overview
     SELECT
         COALESCE(
             SAFE_CAST(entry.event_date AS DATE),
@@ -14,7 +14,7 @@ WITH rejection_unpivoted AS (
         size,
         vendor,
         entry.reason
-    FROM `production-dashboard-482014.dashboard_data.master_station_data_test`,
+    FROM `production-dashboard-482014.dashboard_data.master_station_data`,
     UNNEST([
         STRUCT(vqc_inward_date AS event_date, vqc_reason AS reason, 'VQC' AS stage),
         STRUCT(ft_inward_date AS event_date, ft_reason AS reason, 'FT' AS stage),

@@ -5,7 +5,7 @@ from google.cloud import bigquery
 # Configuration
 PROJECT_ID = "production-dashboard-482014"
 DATASET_ID = "dashboard_data"
-MASTER_TABLE = "master_station_data_test"
+MASTER_TABLE = "master_station_data"
 
 client = bigquery.Client()
 
@@ -31,7 +31,7 @@ def bq_trigger_handler(event, context):
 
 def update_dash_overview():
     sql = """
-    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview_test` AS
+    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview` AS
     WITH single_scan_funnel AS (
         SELECT
             entry.event_date,
@@ -43,7 +43,7 @@ def update_dash_overview():
             vqc_status,
             ft_status,
             cs_status
-        FROM `production-dashboard-482014.dashboard_data.master_station_data_test`,
+        FROM `production-dashboard-482014.dashboard_data.master_station_data`,
         UNNEST([
             STRUCT(vqc_inward_date AS event_date, 'VQC' AS stage),
             STRUCT(ft_inward_date AS event_date, 'FT' AS stage),
@@ -108,11 +108,11 @@ def update_dash_overview():
     """
     query_job = client.query(sql)
     query_job.result()
-    print("dash_overview_test updated.")
+    print("dash_overview updated.")
 
 def update_rejection_analysis():
     sql = """
-    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis_test` AS
+    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis` AS
     WITH rejection_unpivoted AS (
         SELECT
             COALESCE(
@@ -127,7 +127,7 @@ def update_rejection_analysis():
             size,
             vendor,
             entry.reason
-        FROM `production-dashboard-482014.dashboard_data.master_station_data_test`,
+        FROM `production-dashboard-482014.dashboard_data.master_station_data`,
         UNNEST([
             STRUCT(vqc_inward_date AS event_date, vqc_reason AS reason, 'VQC' AS stage),
             STRUCT(ft_inward_date AS event_date, ft_reason AS reason, 'FT' AS stage),
@@ -162,4 +162,4 @@ def update_rejection_analysis():
     """
     query_job = client.query(sql)
     query_job.result()
-    print("rejection_analysis_test updated.")
+    print("rejection_analysis updated.")

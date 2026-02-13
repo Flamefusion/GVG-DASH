@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.master_station_data_test` (
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.master_station_data` (
     vqc_inward_date DATE,
     line STRING,
     serial_number STRING NOT NULL,
