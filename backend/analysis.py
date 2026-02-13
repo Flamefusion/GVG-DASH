@@ -104,9 +104,9 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     
     # Construct overview table name
     # table is like `project.dataset.master_station_data`
-    # overview needs `project.dataset.dash_overview` or `dash_overview_test`
+    # overview needs `project.dataset.dash_overview` or `dash_overview`
     parts = table.replace('`', '').split('.')
-    overview_base = 'dash_overview_test' if 'test' in table else 'dash_overview'
+    overview_base = 'dash_overview' if 'test' in table else 'dash_overview'
     if len(parts) == 3:
         overview_table = f"`{parts[0]}.{parts[1]}.{overview_base}`"
     else:
@@ -157,10 +157,10 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     ORDER BY day
     """
 
-    # For Top Rejections, use rejection_analysis_test view (which is unpivoted)
+    # For Top Rejections, use rejection_analysis view (which is unpivoted)
     # Derive rejection table name from master table name
     parts = table.replace('`', '').split('.')
-    rejection_base = 'rejection_analysis_test' if 'test' in table else 'rejection_analysis'
+    rejection_base = 'rejection_analysis' if 'test' in table else 'rejection_analysis'
     if len(parts) == 3:
         rejection_table = f"`{parts[0]}.{parts[1]}.{rejection_base}`"
     else:
@@ -253,9 +253,9 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     # To be consistent with get_analysis_data, we'll derive overview table name.
     
     # Assuming ring_status_table is passed as `project.dataset.ring_status` or similar
-    # We want `project.dataset.dash_overview` or `dash_overview_test`
+    # We want `project.dataset.dash_overview` or `dash_overview`
     parts = ring_status_table.replace('`', '').split('.')
-    overview_base = 'dash_overview_test' if 'test' in ring_status_table else 'dash_overview'
+    overview_base = 'dash_overview' if 'test' in ring_status_table else 'dash_overview'
     if len(parts) >= 2:
         # dataset is parts[-2]
         overview_table = f"`{'.'.join(parts[:-1])}.{overview_base}`"

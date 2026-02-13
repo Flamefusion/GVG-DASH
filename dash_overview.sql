@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview_test` AS
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview` AS
 WITH single_scan_funnel AS (
     -- Single scan of the master table
     SELECT
@@ -11,7 +11,7 @@ WITH single_scan_funnel AS (
         vqc_status,
         ft_status,
         cs_status
-    FROM `production-dashboard-482014.dashboard_data.master_station_data_test`,
+    FROM `production-dashboard-482014.dashboard_data.master_station_data`,
     -- This unpivots the dates into stages without scanning the table 3 times
     UNNEST([
         STRUCT(vqc_inward_date AS event_date, 'VQC' AS stage),
