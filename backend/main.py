@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, timedelta
-from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data
+from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data, get_category_report_data
 from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 # Load environment variables from .env file
@@ -162,6 +162,7 @@ async def get_report(
 async def get_rejection_report(
     start_date: Optional[date] = None, 
     end_date: Optional[date] = None, 
+    stage: str = Query('VQC', description="Stage: VQC, FT, CS"),
     vendor: str = Query('all', description="Vendor name"),
     sizes: Optional[List[str]] = Query(None, alias="size"),
     skus: Optional[List[str]] = Query(None, alias="sku"),
@@ -170,10 +171,27 @@ async def get_rejection_report(
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus, line)
+        data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus, line)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
+
+@app.get("/category-report-data")
+async def get_category_report(
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None, 
+    vendor: str = Query('all', description="Vendor name"),
+    sizes: Optional[List[str]] = Query(None, alias="size"),
+    skus: Optional[List[str]] = Query(None, alias="sku"),
+    line: Optional[str] = None
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    try:
+        data = get_category_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus, line)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting category report data: {e}")
 
 @app.get("/kpis")
 async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None, vendor: str = Query('all', description="Vendor name")):

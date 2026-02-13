@@ -76,6 +76,23 @@ export interface RejectionReportData {
   dates: string[];
 }
 
+export interface CategoryReportData {
+  kpis: {
+    "TOTAL REJECTION": number;
+    "RT CONVERSION": number;
+    "WABI SABI": number;
+    "SCRAP": number;
+  };
+  breakdown: {
+    [outcome: string]: {
+      [category: string]: {
+        total: number;
+        rejections: Array<{ name: string; value: number }>;
+      };
+    };
+  };
+}
+
 export interface AnalysisData {
   kpis: AnalysisKPIs;
   acceptedVsRejected: AnalysisChartData[];
@@ -92,7 +109,7 @@ export interface ReportFilters {
   dateRange: { from: Date | null; to: Date | null };
   vendor: string;
   stage: string;
-  reportType: 'Daily' | 'Rejection';
+  reportType: 'Daily' | 'Rejection' | 'Category';
   selectedSizes: string[];
   selectedSkus: string[];
   line: string;
@@ -141,6 +158,8 @@ interface DashboardContextType {
   setReportData: (data: ReportData) => void;
   rejectionReportData: RejectionReportData | null;
   setRejectionReportData: (data: RejectionReportData | null) => void;
+  categoryReportData: CategoryReportData | null;
+  setCategoryReportData: (data: CategoryReportData | null) => void;
   skus: string[];
   sizes: string[];
   lines: string[];
@@ -208,6 +227,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     rejections: {}
   });
   const [rejectionReportData, setRejectionReportData] = useState<RejectionReportData | null>(null);
+  const [categoryReportData, setCategoryReportData] = useState<CategoryReportData | null>(null);
   const [skus, setSkus] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [lines, setLines] = useState<string[]>([]);
@@ -383,6 +403,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         setReportData,
         rejectionReportData,
         setRejectionReportData,
+        categoryReportData,
+        setCategoryReportData,
         skus,
         sizes,
         lines,

@@ -63,6 +63,9 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
   };
 
   const getStageOptions = (line: string) => {
+    if (localFilters.reportType === 'Category') {
+      return ['VQC'];
+    }
     const upperLine = line.toUpperCase();
     if (upperLine === 'WABI SABI') {
       return ['FT', 'CS'];
@@ -77,6 +80,12 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
     const options = getStageOptions(value);
     const newStage = options.includes(localFilters.stage) ? localFilters.stage : options[0];
     setLocalFilters({ ...localFilters, line: value, stage: newStage });
+  };
+
+  const handleReportTypeChange = (val: 'Daily' | 'Rejection' | 'Category') => {
+    const options = val === 'Category' ? ['VQC'] : getStageOptions(localFilters.line);
+    const newStage = options.includes(localFilters.stage) ? localFilters.stage : options[0];
+    setLocalFilters({ ...localFilters, reportType: val, stage: newStage });
   };
 
   const handleApply = () => {
@@ -217,13 +226,14 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
         </SelectContent>
       </Select>
 
-      <Select value={localFilters.reportType} onValueChange={(val: 'Daily' | 'Rejection') => setLocalFilters({ ...localFilters, reportType: val })}>
-        <SelectTrigger className="w-28 h-8 text-xs">
+      <Select value={localFilters.reportType} onValueChange={handleReportTypeChange}>
+        <SelectTrigger className="w-32 h-8 text-xs">
           <SelectValue placeholder="Type" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="Daily">Daily Report</SelectItem>
           <SelectItem value="Rejection">Rejection Report</SelectItem>
+          <SelectItem value="Category">Category Report</SelectItem>
         </SelectContent>
       </Select>
 

@@ -15,6 +15,7 @@ import {
 import { KPICard } from '@/app/components/KPICard';
 import { ReportFilters } from '@/app/components/ReportFilters';
 import { RejectionReport } from '@/app/components/RejectionReport';
+import { CategoryReport } from '@/app/components/CategoryReport';
 import { useDashboard, ReportData, RejectionDetail } from '@/app/contexts/DashboardContext';
 import { Button } from '@/app/components/ui/button';
 import { format } from 'date-fns';
@@ -22,13 +23,47 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 
 const Report: React.FC = () => {
-  const { darkMode, reportFilters, reportData, setReportData } = useDashboard();
+  const { darkMode, reportFilters, reportData, setReportData, setCategoryReportData } = useDashboard();
   const [loading, setLoading] = useState(false);
+
+  const fetchCategoryData = async (currentFilters: any) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (currentFilters.dateRange.from) queryParams.append('start_date', format(currentFilters.dateRange.from, 'yyyy-MM-dd'));
+      if (currentFilters.dateRange.to) queryParams.append('end_date', format(currentFilters.dateRange.to, 'yyyy-MM-dd'));
+      queryParams.append('vendor', currentFilters.vendor);
+      if (currentFilters.selectedSizes && currentFilters.selectedSizes.length > 0) {
+        currentFilters.selectedSizes.forEach(s => queryParams.append('size', s));
+      }
+      if (currentFilters.selectedSkus && currentFilters.selectedSkus.length > 0) {
+        currentFilters.selectedSkus.forEach(s => queryParams.append('sku', s));
+      }
+      if (currentFilters.line) {
+        queryParams.append('line', currentFilters.line);
+      }
+
+      const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiUrl}/category-report-data?${queryParams.toString()}`);
+      if (response.ok) {
+        const result = await response.json();
+        setCategoryReportData(result);
+      }
+    } catch (error) {
+      console.error("Error fetching category report data:", error);
+    }
+  };
 
   const fetchData = async (currentFilters?: any) => {
     setLoading(true);
+    const filtersToUse = currentFilters || reportFilters;
+    
+    if (filtersToUse.reportType === 'Category') {
+      await fetchCategoryData(filtersToUse);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const filtersToUse = currentFilters || reportFilters;
       const queryParams = new URLSearchParams();
       if (filtersToUse.dateRange.from) queryParams.append('start_date', format(filtersToUse.dateRange.from, 'yyyy-MM-dd'));
       if (filtersToUse.dateRange.to) queryParams.append('end_date', format(filtersToUse.dateRange.to, 'yyyy-MM-dd'));
@@ -60,7 +95,9 @@ const Report: React.FC = () => {
 
   useEffect(() => {
     // Only fetch if data is currently empty (initial state)
-    if (reportData.kpis.output === 0 && reportData.kpis.accepted === 0 && reportData.kpis.rejected === 0) {
+    if (reportFilters.reportType === 'Category') {
+       fetchData();
+    } else if (reportData.kpis.output === 0 && reportData.kpis.accepted === 0 && reportData.kpis.rejected === 0) {
       fetchData();
     }
   }, []);
@@ -121,30 +158,62 @@ const Report: React.FC = () => {
       ? format(reportFilters.dateRange.from, 'd-M-yy') + (reportFilters.dateRange.to && reportFilters.dateRange.to !== reportFilters.dateRange.from ? ` to ${format(reportFilters.dateRange.to, 'd-M-yy')}` : '')
       : 'ALL TIME';
     
+    if (reportFilters.reportType === 'Category') {
+      const { categoryReportData } = useDashboard(); // This won't work in a callback, need to use the one from scope
+      // Actually, categoryReportData is available in the outer scope
+    }
+
     const vendorStr = reportFilters.stage === 'FT' ? 'FT' : (reportFilters.vendor === 'all' ? 'ALL VENDORS' : reportFilters.vendor);
     
-    let content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
-    content += `OUTPUT - ${reportData.kpis.output}\n`;
-    content += `${reportFilters.stage} ACCEPTED - ${reportData.kpis.accepted}\n`;
-    content += `${reportFilters.stage} REJECTED - ${reportData.kpis.rejected}\n`;
-    content += `YIELD - ${yieldValue}%\n\n`;
+    let content = "";
+    let fileName = "";
 
-    rejectionCategories.forEach(cat => {
-      const items = reportData.rejections[cat.key] || [];
-      if (items.length > 0) {
-        content += `*${cat.title} REJECTIONS :*\n`;
-        items.forEach(item => {
-          content += `${item.name} - ${item.value}\n`;
+    if (reportFilters.reportType === 'Category' && categoryReportData) {
+      // Find the currently selected outcome from the UI if possible, 
+      // but for simplicity, we export the summary or we need to pass the selected state up.
+      // Let's export ALL categories in one file for Category Report.
+      content = `*CATEGORY REPORT SUMMARY FOR ${dateStr}*\n\n`;
+      const outcomes = ["TOTAL REJECTION", "RT CONVERSION", "WABI SABI", "SCRAP"];
+      
+      outcomes.forEach(outcome => {
+        content += `=== ${outcome} (${categoryReportData.kpis[outcome]}) ===\n`;
+        rejectionCategories.forEach(cat => {
+          const data = categoryReportData.breakdown[outcome][cat.key];
+          if (data && data.rejections.length > 0) {
+            content += `*${cat.title} REJECTIONS :*\n`;
+            data.rejections.forEach(item => {
+              content += `${item.name} - ${item.value}\n`;
+            });
+          }
         });
         content += '\n';
-      }
-    });
+      });
+      fileName = `CATEGORY_REPORT_SUMMARY_${dateStr}.csv`;
+    } else {
+      content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
+      content += `OUTPUT - ${reportData.kpis.output}\n`;
+      content += `${reportFilters.stage} ACCEPTED - ${reportData.kpis.accepted}\n`;
+      content += `${reportFilters.stage} REJECTED - ${reportData.kpis.rejected}\n`;
+      content += `YIELD - ${yieldValue}%\n\n`;
+
+      rejectionCategories.forEach(cat => {
+        const items = reportData.rejections[cat.key] || [];
+        if (items.length > 0) {
+          content += `*${cat.title} REJECTIONS :*\n`;
+          items.forEach(item => {
+            content += `${item.name} - ${item.value}\n`;
+          });
+          content += '\n';
+        }
+      });
+      fileName = `${reportFilters.stage}_REPORT_${vendorStr}_${dateStr}.csv`;
+    }
 
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${reportFilters.stage}_REPORT_${vendorStr}_${dateStr}.csv`);
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -158,7 +227,7 @@ const Report: React.FC = () => {
         <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           Reports
         </h1>
-        {reportFilters.reportType === 'Daily' && (
+        {(reportFilters.reportType === 'Daily' || reportFilters.reportType === 'Category') && (
           <Button onClick={handleExport} className="flex items-center gap-2">
             <Download size={16} />
             Export CSV
@@ -170,6 +239,8 @@ const Report: React.FC = () => {
 
       {reportFilters.reportType === 'Rejection' ? (
         <RejectionReport />
+      ) : reportFilters.reportType === 'Category' ? (
+        <CategoryReport />
       ) : (
         <>
           {/* Main KPIs - Compact */}
