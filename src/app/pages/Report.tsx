@@ -45,23 +45,24 @@ const Report: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (currentFilters?: any) => {
     setLoading(true);
     try {
+      const filtersToUse = currentFilters || reportFilters;
       const queryParams = new URLSearchParams();
-      if (reportFilters.dateRange.from) queryParams.append('start_date', format(reportFilters.dateRange.from, 'yyyy-MM-dd'));
-      if (reportFilters.dateRange.to) queryParams.append('end_date', format(reportFilters.dateRange.to, 'yyyy-MM-dd'));
-      const isNonVendorStage = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(reportFilters.stage);
-      queryParams.append('stage', reportFilters.stage);
-      queryParams.append('vendor', isNonVendorStage ? 'all' : reportFilters.vendor);
-      if (reportFilters.selectedSizes && reportFilters.selectedSizes.length > 0) {
-        reportFilters.selectedSizes.forEach(s => queryParams.append('size', s));
+      if (filtersToUse.dateRange.from) queryParams.append('start_date', format(filtersToUse.dateRange.from, 'yyyy-MM-dd'));
+      if (filtersToUse.dateRange.to) queryParams.append('end_date', format(filtersToUse.dateRange.to, 'yyyy-MM-dd'));
+      const isNonVendorStage = ['FT', 'RT', 'RT CS', 'WABI SABI'].includes(filtersToUse.stage);
+      queryParams.append('stage', filtersToUse.stage);
+      queryParams.append('vendor', isNonVendorStage ? 'all' : filtersToUse.vendor);
+      if (filtersToUse.selectedSizes && filtersToUse.selectedSizes.length > 0) {
+        filtersToUse.selectedSizes.forEach(s => queryParams.append('size', s));
       }
-      if (reportFilters.selectedSkus && reportFilters.selectedSkus.length > 0) {
-        reportFilters.selectedSkus.forEach(s => queryParams.append('sku', s));
+      if (filtersToUse.selectedSkus && filtersToUse.selectedSkus.length > 0) {
+        filtersToUse.selectedSkus.forEach(s => queryParams.append('sku', s));
       }
-      if (reportFilters.line) {
-        queryParams.append('line', reportFilters.line);
+      if (filtersToUse.line) {
+        queryParams.append('line', filtersToUse.line);
       }
 
       const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
@@ -81,8 +82,8 @@ const Report: React.FC = () => {
     fetchData();
   }, []); // Only fetch on mount, then use manual apply
 
-  const handleApplyFilters = () => {
-    fetchData();
+  const handleApplyFilters = (filters?: any) => {
+    fetchData(filters);
   };
 
   const totalProcessed = data.kpis.accepted + data.kpis.rejected;
