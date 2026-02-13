@@ -199,6 +199,7 @@ const Report: React.FC = () => {
             {rejectionCategories.map((cat, index) => {
               const items = reportData.rejections[cat.key] || [];
               const total = items.reduce((acc, item) => acc + item.value, 0);
+              const rejectionRate = totalProcessed > 0 ? Math.round((total / totalProcessed) * 100) : 0;
               
               return (
                 <motion.div
@@ -215,8 +216,13 @@ const Report: React.FC = () => {
                                     <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
                                   </CardHeader>
                                   <CardContent className="flex-1 flex flex-col">
-                                    <div className={`text-3xl font-extrabold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                      {total}
+                                    <div className="flex items-baseline gap-2 mb-4">
+                                      <div className={`text-3xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {total}
+                                      </div>
+                                      <div className={`text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        ({rejectionRate}%)
+                                      </div>
                                     </div>
                                     <div className="space-y-3">
                                       {items.map((item, idx) => (
