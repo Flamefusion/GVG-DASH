@@ -33,6 +33,7 @@ export const RejectionReport: React.FC = () => {
         const queryParams = new URLSearchParams();
         if (reportFilters.dateRange.from) queryParams.append('start_date', format(reportFilters.dateRange.from, 'yyyy-MM-dd'));
         if (reportFilters.dateRange.to) queryParams.append('end_date', format(reportFilters.dateRange.to, 'yyyy-MM-dd'));
+        queryParams.append('stage', reportFilters.stage);
         queryParams.append('vendor', reportFilters.vendor);
         if (reportFilters.line) queryParams.append('line', reportFilters.line);
         if (reportFilters.selectedSizes && reportFilters.selectedSizes.length > 0) {

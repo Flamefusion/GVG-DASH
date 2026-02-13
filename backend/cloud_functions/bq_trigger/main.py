@@ -14,6 +14,7 @@ def bq_trigger_handler(event, context):
     Triggered by a Pub/Sub message from a Cloud Logging sink.
     Expects BigQuery Audit Logs for 'google.cloud.bigquery.v2.JobService.InsertJob'
     """
+
     # 1. Parse the log entry from Pub/Sub
     if 'data' in event:
         log_data = base64.b64decode(event['data']).decode('utf-8')
@@ -22,12 +23,13 @@ def bq_trigger_handler(event, context):
         # Optional: Add extra validation to ensure it was a successful MERGE on the right table
         # proto_payload = log_json.get('protoPayload', {})
         # query = proto_payload.get('serviceData', {}).get('jobInsertResponse', {}).get('resource', {}).get('jobConfiguration', {}).get('query', {}).get('query', "")
-        
-        print(f"Triggered by job completion. Updating derived tables...")
+    print(f"Triggered by ETL completion signal. Updating live summary tables...")
+    try:
         update_dash_overview()
         update_rejection_analysis()
-    else:
-        print("No data found in event.")
+        print("Successfully updated all live summary tables.")
+    except Exception as e:
+        print(f"Error during update: {e}")
 
 def update_dash_overview():
     sql = """
@@ -126,12 +128,13 @@ def update_rejection_analysis():
             sku,
             size,
             vendor,
-            entry.reason
+            entry.reason,
+            entry.status
         FROM `production-dashboard-482014.dashboard_data.master_station_data`,
         UNNEST([
-            STRUCT(vqc_inward_date AS event_date, vqc_reason AS reason, 'VQC' AS stage),
-            STRUCT(ft_inward_date AS event_date, ft_reason AS reason, 'FT' AS stage),
-            STRUCT(cs_comp_date AS event_date, cs_reason AS reason, 'CS' AS stage)
+            STRUCT(vqc_inward_date AS event_date, vqc_reason AS reason, 'VQC' AS stage, vqc_status AS status),
+            STRUCT(ft_inward_date AS event_date, ft_reason AS reason, 'FT' AS stage, ft_status AS status),
+            STRUCT(cs_comp_date AS event_date, cs_reason AS reason, 'CS' AS stage, cs_status AS status)
         ]) AS entry
         WHERE entry.reason IS NOT NULL 
         AND entry.event_date IS NOT NULL
@@ -144,6 +147,8 @@ def update_rejection_analysis():
         sku,
         size,
         vendor,
+        status,
+        -- Map and merge reasons (PRE NA/POST NA merged into NOT ADVERTISING)
         CASE 
             WHEN reason IN ('PRE NA', 'POST NA') THEN 'NOT ADVERTISING (WINGLESS PCB)'
             ELSE reason 
@@ -158,7 +163,7 @@ def update_rejection_analysis():
         END AS rejection_category,
         COUNT(*) AS count
     FROM rejection_unpivoted
-    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8;
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9;
     """
     query_job = client.query(sql)
     query_job.result()

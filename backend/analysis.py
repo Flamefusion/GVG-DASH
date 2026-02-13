@@ -338,7 +338,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         "rejections": grouped_rejections
     }
 
-def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
+def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, stage: str, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
     where_conditions = []
     query_parameters = []
 
@@ -347,6 +347,10 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
         query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
         query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
     
+    if stage:
+        where_conditions.append("stage = @stage")
+        query_parameters.append(ScalarQueryParameter("stage", "STRING", stage))
+
     if vendor and vendor.lower() != 'all':
         where_conditions.append("vendor = @vendor")
         query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
@@ -466,4 +470,109 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
         "kpis": kpis,
         "table_data": table_rows,
         "dates": sorted_dates
+    }
+
+def get_category_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
+    # Only stage VQC is allowed for this report as per user request
+    where_conditions = ["stage = 'VQC'"]
+    query_parameters = []
+
+    if start_date and end_date:
+        where_conditions.append(f"date BETWEEN @start_date AND @end_date")
+        query_parameters.append(ScalarQueryParameter("start_date", "DATE", str(start_date)))
+        query_parameters.append(ScalarQueryParameter("end_date", "DATE", str(end_date)))
+    
+    if vendor and vendor.lower() != 'all':
+        where_conditions.append("vendor = @vendor")
+        query_parameters.append(ScalarQueryParameter("vendor", "STRING", vendor))
+    
+    if sizes:
+        where_conditions.append("size IN UNNEST(@sizes)")
+        query_parameters.append(ArrayQueryParameter("sizes", "STRING", sizes))
+
+    if skus:
+        where_conditions.append("sku IN UNNEST(@skus)")
+        query_parameters.append(ArrayQueryParameter("skus", "STRING", skus))
+        
+    if line:
+        where_conditions.append("line = @line")
+        query_parameters.append(ScalarQueryParameter("line", "STRING", line))
+    
+    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+
+    query = f"""
+        SELECT 
+            status,
+            rejection_category,
+            vqc_reason as reason,
+            SUM(count) as count
+        FROM {rejection_analysis_table}
+        {where_clause}
+        GROUP BY 1, 2, 3
+    """
+    
+    try:
+        job_config = QueryJobConfig(query_parameters=query_parameters)
+        job = client.query(query, job_config=job_config)
+        rows = [dict(row) for row in job.result()]
+    except Exception as e:
+        print(f"Category Report Query Error: {e}")
+        return {"error": str(e)}
+
+    # Process data
+    # Outcome mapping
+    # RT CONVERSION, WABI SABI, SCRAP
+    
+    kpis = {
+        "TOTAL REJECTION": 0,
+        "RT CONVERSION": 0,
+        "WABI SABI": 0,
+        "SCRAP": 0
+    }
+    
+    # Structure: breakdown[outcome][category] = { total: X, rejections: [] }
+    # outcome can be 'TOTAL', 'RT CONVERSION', 'WABI SABI', 'SCRAP'
+    breakdown = {
+        "TOTAL REJECTION": {},
+        "RT CONVERSION": {},
+        "WABI SABI": {},
+        "SCRAP": {}
+    }
+    
+    # Initialize categories for each outcome
+    categories = ["ASSEMBLY", "CASTING", "FUNCTIONAL", "SHELL", "POLISHING"]
+    for outcome in breakdown:
+        for cat in categories:
+            breakdown[outcome][cat] = {"total": 0, "rejections": []}
+
+    for row in rows:
+        status = (row['status'] or "").upper()
+        cat = (row['rejection_category'] or "").upper()
+        reason = row['reason']
+        count = row['count']
+        
+        if cat not in categories: continue
+
+        # Add to Total
+        kpis["TOTAL REJECTION"] += count
+        breakdown["TOTAL REJECTION"][cat]["total"] += count
+        breakdown["TOTAL REJECTION"][cat]["rejections"].append({"name": reason, "value": count})
+        
+        # Add to specific outcome
+        outcome_key = None
+        if status == 'RT CONVERSION':
+            outcome_key = 'RT CONVERSION'
+        elif status == 'WABI SABI':
+            outcome_key = 'WABI SABI'
+        elif status == 'SCRAP':
+            outcome_key = 'SCRAP'
+            
+        if outcome_key:
+            kpis[outcome_key] += count
+            breakdown[outcome_key][cat]["total"] += count
+            breakdown[outcome_key][cat]["rejections"].append({"name": reason, "value": count})
+
+    return {
+        "kpis": kpis,
+        "breakdown": breakdown
     }
