@@ -1,33 +1,22 @@
 import base64
-import json
 from google.cloud import bigquery
 
 # Configuration
 PROJECT_ID = "production-dashboard-482014"
-DATASET_ID = "dashboard_data"
-MASTER_TABLE = "master_station_data"
-
 client = bigquery.Client()
 
 def bq_trigger_handler(event, context):
     """
-    Triggered by a Pub/Sub message from a Cloud Logging sink.
-    Expects BigQuery Audit Logs for 'google.cloud.bigquery.v2.JobService.InsertJob'
+    Triggered by a Pub/Sub message from a Custom Log Sink.
     """
-    # 1. Parse the log entry from Pub/Sub
-    if 'data' in event:
-        log_data = base64.b64decode(event['data']).decode('utf-8')
-        log_json = json.loads(log_data)
-        
-        # Optional: Add extra validation to ensure it was a successful MERGE on the right table
-        # proto_payload = log_json.get('protoPayload', {})
-        # query = proto_payload.get('serviceData', {}).get('jobInsertResponse', {}).get('resource', {}).get('jobConfiguration', {}).get('query', {}).get('query', "")
-        
-        print(f"Triggered by job completion. Updating derived tables...")
+    print(f"Triggered by ETL completion signal. Updating summary tables...")
+    
+    try:
         update_dash_overview()
         update_rejection_analysis()
-    else:
-        print("No data found in event.")
+        print("Successfully updated all summary tables.")
+    except Exception as e:
+        print(f"Error during update: {e}")
 
 def update_dash_overview():
     sql = """
@@ -76,7 +65,7 @@ def update_dash_overview():
         )) AS `3de_tech_rejection`,
         COUNTIF(vendor = 'IHC' AND (
             UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR 
-            UPPER(ft_status) IN ('REJECTED', 'AEST_REJECTED', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
+            UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR
             UPPER(cs_status) = 'REJECTED'
         )) AS ihc_rejection,
         COUNTIF(UPPER(vqc_status) IN ('SCRAP', 'WABI SABI', 'RT CONVERSION')) AS vqc_rejection,
@@ -108,7 +97,6 @@ def update_dash_overview():
     """
     query_job = client.query(sql)
     query_job.result()
-    print("dash_overview updated.")
 
 def update_rejection_analysis():
     sql = """
@@ -162,4 +150,3 @@ def update_rejection_analysis():
     """
     query_job = client.query(sql)
     query_job.result()
-    print("rejection_analysis updated.")
