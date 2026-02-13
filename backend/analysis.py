@@ -139,11 +139,11 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
 
     # 3. Rejection Breakdown chart
     rejection_breakdown_query = f"""
-    SELECT 'RT CONVERSION' as name, SUM(rt_conversion_count) as value FROM {overview_table} {overview_where}
+    SELECT 'RT CONVERSION' as name, SUM(stage_rt_conversion_count) as value FROM {overview_table} {overview_where}
     UNION ALL
-    SELECT 'WABI SABI' as name, SUM(wabi_sabi_count) as value FROM {overview_table} {overview_where}
+    SELECT 'WABI SABI' as name, SUM(stage_wabi_sabi_count) as value FROM {overview_table} {overview_where}
     UNION ALL
-    SELECT 'SCRAP' as name, SUM(scrap_count) as value FROM {overview_table} {overview_where}
+    SELECT 'SCRAP' as name, SUM(stage_scrap_count) as value FROM {overview_table} {overview_where}
     """
 
     # 4. Rejection Trend chart
@@ -293,7 +293,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
     """
     
     # Rejection Analysis (Detailed) - keeps using filters (SKU/Size)
-    rejection_where, rejection_query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'date', 'sku', 'size', line, vendor=vendor)
+    rejection_where, rejection_query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'date', 'sku', 'size', line, stage=stage, vendor=vendor)
 
     rejection_query = f"""
         SELECT 

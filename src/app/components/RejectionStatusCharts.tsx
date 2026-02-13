@@ -35,6 +35,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
   const BREAKDOWN_COLORS = ['#f59e0b', '#8b5cf6', '#06b6d4'];
   
   const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
+  const showBreakdown = filters.stage === 'VQC' && !isRT;
 
   const renderAcceptedVsRejectedLabel = ({ cx, cy, midAngle, outerRadius, percent, value, name, innerRadius, fill }) => {
     const RADIAN = Math.PI / 180;
@@ -69,7 +70,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
 
 
   return (
-    <div className={`grid gap-6 ${isRT ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+    <div className={`grid gap-6 ${!showBreakdown ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
       <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
         <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Accepted vs. Rejected</h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -103,7 +104,7 @@ export const RejectionStatusCharts: React.FC<RejectionStatusChartsProps> = ({ ac
           </PieChart>
         </ResponsiveContainer>
       </div>
-      {!isRT && (
+      {showBreakdown && (
         <div className={`rounded-2xl p-6 shadow-lg border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent'}`}>
           <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Rejection Breakdown</h3>
           <ResponsiveContainer width="100%" height={300}>
