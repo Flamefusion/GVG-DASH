@@ -104,6 +104,10 @@ export const ChartSection: React.FC = () => {
                 dataKey="sku"
                 stroke={darkMode ? '#a3a3a3' : '#737373'}
                 style={{ fontSize: '12px' }}
+                angle={-45}
+                textAnchor="end"
+                interval={0}
+                height={40}
               />
               <YAxis
                 stroke={darkMode ? '#a3a3a3' : '#737373'}
