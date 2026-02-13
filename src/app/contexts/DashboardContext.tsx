@@ -41,6 +41,41 @@ export interface AnalysisTrendData {
   rejected: number;
 }
 
+export interface RejectionDetail {
+  name: string;
+  value: number;
+}
+
+export interface ReportData {
+  kpis: {
+    output: number;
+    accepted: number;
+    rejected: number;
+  };
+  rejections: {
+    [category: string]: RejectionDetail[];
+  };
+}
+
+export interface RejectionReportData {
+  kpis: {
+    "TOTAL REJECTIONS": number;
+    "ASSEMBLY": number;
+    "CASTING": number;
+    "FUNCTIONAL": number;
+    "POLISHING": number;
+    "SHELL": number;
+    [key: string]: number;
+  };
+  table_data: Array<{
+    stage: string;
+    rejection_type: string;
+    total: number;
+    [date: string]: number | string;
+  }>;
+  dates: string[];
+}
+
 export interface AnalysisData {
   kpis: AnalysisKPIs;
   acceptedVsRejected: AnalysisChartData[];
@@ -102,6 +137,10 @@ interface DashboardContextType {
   vqcWipChart: ChartData[];
   ftWipChart: ChartData[];
   analysisData: AnalysisData | null;
+  reportData: ReportData;
+  setReportData: (data: ReportData) => void;
+  rejectionReportData: RejectionReportData | null;
+  setRejectionReportData: (data: RejectionReportData | null) => void;
   skus: string[];
   sizes: string[];
   lines: string[];
@@ -164,6 +203,11 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
   const [ftWipChart, setFtWipChart] = useState<ChartData[]>([]);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [reportData, setReportData] = useState<ReportData>({
+    kpis: { output: 0, accepted: 0, rejected: 0 },
+    rejections: {}
+  });
+  const [rejectionReportData, setRejectionReportData] = useState<RejectionReportData | null>(null);
   const [skus, setSkus] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [lines, setLines] = useState<string[]>([]);
@@ -335,6 +379,10 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         vqcWipChart,
         ftWipChart,
         analysisData,
+        reportData,
+        setReportData,
+        rejectionReportData,
+        setRejectionReportData,
         skus,
         sizes,
         lines,

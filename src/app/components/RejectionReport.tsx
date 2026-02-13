@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDashboard } from '@/app/contexts/DashboardContext';
+import { useDashboard, RejectionReportData } from '@/app/contexts/DashboardContext';
 import { format } from 'date-fns';
 import { KPICard } from '@/app/components/KPICard';
 import { Button } from '@/app/components/ui/button';
@@ -15,36 +15,19 @@ import {
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Skeleton } from '@/app/components/ui/skeleton';
 
-interface RejectionKPIs {
-  "TOTAL REJECTIONS": number;
-  "ASSEMBLY": number;
-  "CASTING": number;
-  "FUNCTIONAL": number;
-  "POLISHING": number;
-  "SHELL": number;
-  [key: string]: number;
-}
-
-interface TableRowData {
-  stage: string;
-  rejection_type: string;
-  total: number;
-  [date: string]: number | string;
-}
-
-interface RejectionData {
-  kpis: RejectionKPIs;
-  table_data: TableRowData[];
-  dates: string[];
-}
-
 export const RejectionReport: React.FC = () => {
-  const { reportFilters, darkMode } = useDashboard();
-  const [data, setData] = useState<RejectionData | null>(null);
+  const { reportFilters, darkMode, rejectionReportData, setRejectionReportData } = useDashboard();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      // If we already have data, don't fetch again unless filters changed (handled by effect dependency)
+      // Actually, we want to fetch on first load of this component if data is null
+      if (rejectionReportData) {
+         // Optimization: If you want it to refresh every time the tab is clicked, remove this check.
+         // For now, we fetch if null.
+      }
+      
       setLoading(true);
       try {
         const queryParams = new URLSearchParams();
@@ -63,7 +46,7 @@ export const RejectionReport: React.FC = () => {
         const response = await fetch(`${apiUrl}/rejection-report-data?${queryParams.toString()}`);
         if (response.ok) {
           const result = await response.json();
-          setData(result);
+          setRejectionReportData(result);
         }
       } catch (error) {
         console.error("Error fetching rejection report data:", error);
@@ -76,19 +59,19 @@ export const RejectionReport: React.FC = () => {
   }, [reportFilters]);
 
   const handleExport = () => {
-    if (!data) return;
+    if (!rejectionReportData) return;
 
-    const dateHeaders = data.dates.map(d => format(new Date(d), 'dd-MMM-yy'));
+    const dateHeaders = rejectionReportData.dates.map(d => format(new Date(d), 'dd-MMM-yy'));
     const headers = ['Stage', 'Rejection Type', ...dateHeaders, 'Total'];
     
     // Create CSV content
     const csvRows = [headers.join(',')];
     
-    data.table_data.forEach(row => {
+    rejectionReportData.table_data.forEach(row => {
       const rowValues = [
         row.stage,
         `"${row.rejection_type}"`, // Quote to handle commas in text
-        ...data.dates.map(d => row[d] || 0),
+        ...rejectionReportData.dates.map(d => row[d] || 0),
         row.total
       ];
       csvRows.push(rowValues.join(','));
@@ -117,7 +100,7 @@ export const RejectionReport: React.FC = () => {
     { title: 'SHELL', key: 'SHELL', icon: AlertTriangle, color: '#6366f1' },
   ];
 
-  if (loading) {
+  if (loading && !rejectionReportData) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-6 gap-4">
@@ -128,7 +111,7 @@ export const RejectionReport: React.FC = () => {
     );
   }
 
-  if (!data) return <div className="text-center py-10">No data available</div>;
+  if (!rejectionReportData) return <div className="text-center py-10">No data available</div>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -144,7 +127,7 @@ export const RejectionReport: React.FC = () => {
           <KPICard
             key={item.key}
             title={item.title}
-            value={data.kpis[item.key] || 0}
+            value={rejectionReportData.kpis[item.key] || 0}
             icon={item.icon}
             color={item.color}
             onClick={() => {}}
@@ -159,7 +142,7 @@ export const RejectionReport: React.FC = () => {
               <TableRow className={darkMode ? 'border-gray-700 hover:bg-gray-800' : ''}>
                 <TableHead className={`w-[150px] font-bold ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Stage</TableHead>
                 <TableHead className={`w-[250px] font-bold ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Rejection Type</TableHead>
-                {data.dates.map(d => (
+                {rejectionReportData.dates.map(d => (
                   <TableHead key={d} className={`text-center font-bold whitespace-nowrap ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                     {format(new Date(d), 'dd-MMM-yy')}
                   </TableHead>
@@ -168,11 +151,11 @@ export const RejectionReport: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.table_data.map((row, index) => (
+              {rejectionReportData.table_data.map((row, index) => (
                 <TableRow key={`${row.stage}-${row.rejection_type}-${index}`} className={darkMode ? 'border-gray-700 hover:bg-gray-700/50' : 'hover:bg-gray-50'}>
                   <TableCell className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{row.stage}</TableCell>
                   <TableCell className={darkMode ? 'text-gray-300' : 'text-gray-700'}>{row.rejection_type}</TableCell>
-                  {data.dates.map(d => (
+                  {rejectionReportData.dates.map(d => (
                     <TableCell key={d} className={`text-center ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {row[d] || 0}
                     </TableCell>

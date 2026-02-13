@@ -15,34 +15,14 @@ import {
 import { KPICard } from '@/app/components/KPICard';
 import { ReportFilters } from '@/app/components/ReportFilters';
 import { RejectionReport } from '@/app/components/RejectionReport';
-import { useDashboard } from '@/app/contexts/DashboardContext';
+import { useDashboard, ReportData, RejectionDetail } from '@/app/contexts/DashboardContext';
 import { Button } from '@/app/components/ui/button';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 
-interface RejectionDetail {
-  name: string;
-  value: number;
-}
-
-interface ReportData {
-  kpis: {
-    output: number;
-    accepted: number;
-    rejected: number;
-  };
-  rejections: {
-    [category: string]: RejectionDetail[];
-  };
-}
-
 const Report: React.FC = () => {
-  const { darkMode, reportFilters } = useDashboard();
-  const [data, setData] = useState<ReportData>({
-    kpis: { output: 0, accepted: 0, rejected: 0 },
-    rejections: {}
-  });
+  const { darkMode, reportFilters, reportData, setReportData } = useDashboard();
   const [loading, setLoading] = useState(false);
 
   const fetchData = async (currentFilters?: any) => {
@@ -69,7 +49,7 @@ const Report: React.FC = () => {
       const response = await fetch(`${apiUrl}/report-data?${queryParams.toString()}`);
       if (response.ok) {
         const result = await response.json();
-        setData(result);
+        setReportData(result);
       }
     } catch (error) {
       console.error("Error fetching report data:", error);
@@ -79,36 +59,39 @@ const Report: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []); // Only fetch on mount, then use manual apply
+    // Only fetch if data is currently empty (initial state)
+    if (reportData.kpis.output === 0 && reportData.kpis.accepted === 0 && reportData.kpis.rejected === 0) {
+      fetchData();
+    }
+  }, []);
 
   const handleApplyFilters = (filters?: any) => {
     fetchData(filters);
   };
 
-  const totalProcessed = data.kpis.accepted + data.kpis.rejected;
-  const yieldValue = totalProcessed > 0 ? Math.round((data.kpis.accepted / totalProcessed) * 100) : 0;
+  const totalProcessed = reportData.kpis.accepted + reportData.kpis.rejected;
+  const yieldValue = totalProcessed > 0 ? Math.round((reportData.kpis.accepted / totalProcessed) * 100) : 0;
 
   const isWabiSabi = reportFilters.stage === 'WABI SABI';
 
   const mainKpis = [
     {
       title: 'OUTPUT',
-      value: data.kpis.output,
+      value: reportData.kpis.output,
       icon: Package,
       color: '#3b82f6',
       show: true,
     },
     {
       title: 'ACCEPTED',
-      value: data.kpis.accepted,
+      value: reportData.kpis.accepted,
       icon: CheckCircle,
       color: '#10b981',
       show: true,
     },
     {
       title: 'REJECTED',
-      value: data.kpis.rejected,
+      value: reportData.kpis.rejected,
       icon: XCircle,
       color: '#ef4444',
       show: true,
@@ -141,13 +124,13 @@ const Report: React.FC = () => {
     const vendorStr = reportFilters.stage === 'FT' ? 'FT' : (reportFilters.vendor === 'all' ? 'ALL VENDORS' : reportFilters.vendor);
     
     let content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
-    content += `OUTPUT - ${data.kpis.output}\n`;
-    content += `${reportFilters.stage} ACCEPTED - ${data.kpis.accepted}\n`;
-    content += `${reportFilters.stage} REJECTED - ${data.kpis.rejected}\n`;
+    content += `OUTPUT - ${reportData.kpis.output}\n`;
+    content += `${reportFilters.stage} ACCEPTED - ${reportData.kpis.accepted}\n`;
+    content += `${reportFilters.stage} REJECTED - ${reportData.kpis.rejected}\n`;
     content += `YIELD - ${yieldValue}%\n\n`;
 
     rejectionCategories.forEach(cat => {
-      const items = data.rejections[cat.key] || [];
+      const items = reportData.rejections[cat.key] || [];
       if (items.length > 0) {
         content += `*${cat.title} REJECTIONS :*\n`;
         items.forEach(item => {
@@ -190,14 +173,13 @@ const Report: React.FC = () => {
       ) : (
         <>
           {/* Main KPIs - Compact */}
-          <div className={`grid gap-4 mb-8 ${visibleKpis.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <div className={`grid gap-4 mb-10 ${visibleKpis.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {visibleKpis.map((card, index) => (
               <motion.div
                 key={card.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="h-32" 
               >
                 <KPICard
                   title={card.title}
@@ -212,10 +194,10 @@ const Report: React.FC = () => {
           </div>
 
           {/* Rejection Category KPIs - Detailed List */}
-          <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Rejection Analysis</h2>
+          <h2 className={`text-xl font-semibold mb-6 mt-8 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Rejection Analysis</h2>
           <div className="grid grid-cols-5 gap-4 mb-8">
             {rejectionCategories.map((cat, index) => {
-              const items = data.rejections[cat.key] || [];
+              const items = reportData.rejections[cat.key] || [];
               const total = items.reduce((acc, item) => acc + item.value, 0);
               
               return (
