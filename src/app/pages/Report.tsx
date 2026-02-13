@@ -76,7 +76,11 @@ const Report: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [reportFilters]);
+  }, []); // Only fetch on mount, then use manual apply
+
+  const handleApplyFilters = () => {
+    fetchData();
+  };
 
   const totalProcessed = data.kpis.accepted + data.kpis.rejected;
   const yieldValue = totalProcessed > 0 ? Math.round((data.kpis.accepted / totalProcessed) * 100) : 0;
@@ -175,7 +179,7 @@ const Report: React.FC = () => {
         )}
       </div>
 
-      <ReportFilters />
+      <ReportFilters onApply={handleApplyFilters} />
 
       {reportFilters.reportType === 'Rejection' ? (
         <RejectionReport />

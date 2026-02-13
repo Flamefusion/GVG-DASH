@@ -62,10 +62,10 @@ export const DashboardFilters: React.FC = () => {
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={`w-32 justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"}`}
+            className={`w-28 h-8 text-xs justify-start text-left font-normal ${!filters.dateRange.from && "text-muted-foreground"}`}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {filters.dateRange.from ? format(filters.dateRange.from, "dd/MM/yyyy") : <span>From Date</span>}
+            <CalendarIcon className="mr-1 h-3 w-3" />
+            {filters.dateRange.from ? format(filters.dateRange.from, "dd/MM/yyyy") : <span>From</span>}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
@@ -77,15 +77,15 @@ export const DashboardFilters: React.FC = () => {
           />
         </PopoverContent>
       </Popover>
-      <span className={darkMode ? 'text-white' : 'text-gray-700'}>to</span>
+      <span className={`text-xs ${darkMode ? 'text-white' : 'text-gray-700'}`}>to</span>
       <Popover>
         <PopoverTrigger asChild>
           <Button
             variant={"outline"}
-            className={`w-32 justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"}`}
+            className={`w-28 h-8 text-xs justify-start text-left font-normal ${!filters.dateRange.to && "text-muted-foreground"}`}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {filters.dateRange.to ? format(filters.dateRange.to, "dd/MM/yyyy") : <span>To Date</span>}
+            <CalendarIcon className="mr-1 h-3 w-3" />
+            {filters.dateRange.to ? format(filters.dateRange.to, "dd/MM/yyyy") : <span>To</span>}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
@@ -101,9 +101,9 @@ export const DashboardFilters: React.FC = () => {
       {/* Size Multi-Select */}
       <Popover open={sizeOpen} onOpenChange={setSizeOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-32 justify-between">
+          <Button variant="outline" role="combobox" aria-expanded={sizeOpen} className="w-24 h-8 text-xs justify-between">
             {filters.selectedSizes.length > 0 ? `${filters.selectedSizes.length} Sizes` : "Size"}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
@@ -129,9 +129,9 @@ export const DashboardFilters: React.FC = () => {
       {/* SKU Multi-Select */}
       <Popover open={skuOpen} onOpenChange={setSkuOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-32 justify-between">
+          <Button variant="outline" role="combobox" aria-expanded={skuOpen} className="w-24 h-8 text-xs justify-between">
             {filters.selectedSkus.length > 0 ? `${filters.selectedSkus.length} SKUs` : "SKU"}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
@@ -158,7 +158,7 @@ export const DashboardFilters: React.FC = () => {
         value={filters.line}
         onValueChange={handleLineChange}
       >
-        <SelectTrigger className="w-32">
+        <SelectTrigger className="w-28 h-8 text-xs">
           <SelectValue placeholder="Line" />
         </SelectTrigger>
         <SelectContent>
@@ -174,7 +174,7 @@ export const DashboardFilters: React.FC = () => {
         value={filters.stage}
         onValueChange={(value) => setFilters({ ...filters, stage: value })}
       >
-        <SelectTrigger className="w-32">
+        <SelectTrigger className="w-24 h-8 text-xs">
           <SelectValue placeholder="Stage" />
         </SelectTrigger>
         <SelectContent>
@@ -186,8 +186,8 @@ export const DashboardFilters: React.FC = () => {
         </SelectContent>
       </Select>
       
-      <Button onClick={applyFilters} className="flex items-center gap-2">
-        <Search size={16} />
+      <Button onClick={applyFilters} className="h-8 text-xs flex items-center gap-1">
+        <Search size={14} />
         Apply
       </Button>
     </div>

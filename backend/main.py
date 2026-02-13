@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     BIGQUERY_DATASET_ID: str = 'dashboard_data'
     BIGQUERY_TABLE_ID: str = 'master_station_data_test'
     RING_STATUS_TABLE_ID: str = 'ring_status'
-    REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis'
+    REJECTION_ANALYSIS_TABLE_ID: str = 'rejection_analysis_test'
     USERS_TABLE_ID: str = 'users'
 
 settings = Settings()
@@ -60,7 +60,7 @@ try:
     client = bigquery.Client(project=settings.BIGQUERY_PROJECT_ID)
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'ring_status')}`"
-    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID.replace('master_station_data', 'rejection_analysis')}`"
+    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.REJECTION_ANALYSIS_TABLE_ID}`"
     USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.USERS_TABLE_ID}`"
 
 except Exception as e:
@@ -68,7 +68,7 @@ except Exception as e:
     client = None
     TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.BIGQUERY_TABLE_ID}`"
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.ring_status`"
-    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.rejection_analysis`"
+    REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.REJECTION_ANALYSIS_TABLE_ID}`"
     USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.users`"
 
 @app.post("/token", response_model=Token)
@@ -120,7 +120,7 @@ def read_root():
     return {"message": "GVG Dashboard Backend is running"}
 
 @app.get("/analysis")
-async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), stage: Optional[str] = None, date_column: str = 'vqc_inward_date', line: Optional[str] = None):
+async def get_analysis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), stage: Optional[str] = None, date_column: str = 'vqc_inward_date', line: Optional[str] = None, vendor: str = Query('all', description="Vendor name")):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     
@@ -130,7 +130,7 @@ async def get_analysis(start_date: Optional[date] = None, end_date: Optional[dat
     date_col = date_column
 
     try:
-        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col, line, stage)
+        analysis_data = get_analysis_data(client, table_to_use, start_date, end_date, sizes, skus, date_col, sku_col, size_col, line, stage, vendor)
         return analysis_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting analysis data: {e}")
@@ -176,7 +176,7 @@ async def get_rejection_report(
         raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
 
 @app.get("/kpis")
-async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):
+async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None, vendor: str = Query('all', description="Vendor name")):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
@@ -193,7 +193,7 @@ async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] =
     
     # Default to 'VQC' if stage is invalid for the overview table to avoid double counting
     overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage)
+    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
 
     # Base query on dash_overview
     query = f"""
