@@ -61,7 +61,7 @@ SELECT
     COUNTIF(UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION')) AS ft_rejection,
     COUNTIF(UPPER(cs_status) = 'REJECTED') AS cs_rejection,
 
-    -- Chart Breakdown
+    -- Chart Breakdown (Cohort based - for Accepted vs Rejected)
     COUNTIF(vqc_status = 'RT CONVERSION') AS rt_conversion_count,
     COUNTIF(vqc_status = 'WABI SABI' OR ft_status = 'WABI SABI') AS wabi_sabi_count,
     COUNTIF(
@@ -69,6 +69,15 @@ SELECT
         UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'FUNCTIONAL REJECTION') OR 
         UPPER(cs_status) = 'REJECTED'
     ) AS scrap_count,
+
+    -- Rejection Breakdown (Stage specific - for Breakdown chart)
+    COUNTIF(stage = 'VQC' AND vqc_status = 'RT CONVERSION') AS stage_rt_conversion_count,
+    COUNTIF((stage = 'VQC' AND vqc_status = 'WABI SABI') OR (stage = 'FT' AND ft_status = 'WABI SABI')) AS stage_wabi_sabi_count,
+    COUNTIF(
+        (stage = 'VQC' AND UPPER(vqc_status) = 'SCRAP') OR 
+        (stage = 'FT' AND UPPER(ft_status) IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'FUNCTIONAL REJECTION')) OR 
+        (stage = 'CS' AND UPPER(cs_status) = 'REJECTED')
+    ) AS stage_scrap_count,
 
     -- Work In Progress (Cohorts still in the system)
     COUNTIF(

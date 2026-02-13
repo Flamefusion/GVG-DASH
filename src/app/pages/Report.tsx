@@ -60,6 +60,9 @@ const Report: React.FC = () => {
       if (reportFilters.selectedSkus && reportFilters.selectedSkus.length > 0) {
         reportFilters.selectedSkus.forEach(s => queryParams.append('sku', s));
       }
+      if (reportFilters.line) {
+        queryParams.append('line', reportFilters.line);
+      }
 
       const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8080';
       const response = await fetch(`${apiUrl}/report-data?${queryParams.toString()}`);

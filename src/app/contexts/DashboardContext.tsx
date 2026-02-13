@@ -129,7 +129,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     selectedSizes: [],
     selectedSkus: [],
     stage: 'VQC',
-    line: 'Production',
+    line: 'PRODUCTION',
   });
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
     dateRange: getMonthDateRange(),
@@ -138,7 +138,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     reportType: 'Daily',
     selectedSizes: [],
     selectedSkus: [],
-    line: 'Production',
+    line: 'PRODUCTION',
   });
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     serialNumbers: '',
@@ -150,7 +150,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     selectedStatuses: [],
     selectedReasons: [],
     dateRange: { from: null, to: null },
-    line: 'Production',
+    line: 'PRODUCTION',
   });
   const [searchResults, setSearchResults] = useState<SearchResults>({
     data: [],
