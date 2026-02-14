@@ -116,13 +116,6 @@ export const RejectionReport: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-       <div className="flex justify-end mb-4">
-        <Button onClick={handleExport} className="flex items-center gap-2">
-          <Download size={16} />
-          Export CSV
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpiList.map((item) => (
           <KPICard

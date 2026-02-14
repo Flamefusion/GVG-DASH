@@ -91,6 +91,12 @@ const Analysis: React.FC = () => {
         darkMode ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'
       }`}
     >
+      <div className="flex justify-between items-center mb-6">
+        <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          Analysis
+        </h1>
+      </div>
+
       <DashboardFilters />
 
       <div className={`grid gap-4 mb-8 ${

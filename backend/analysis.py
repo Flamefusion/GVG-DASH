@@ -114,9 +114,12 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
         overview_table = overview_base 
 
     # 1. KPIs
+    # Use stage-specific rejection sum for total_rejected
+    stage_rejection_expr = "(stage_rt_conversion_count + stage_wabi_sabi_count + stage_scrap_count)"
+    
     kpi_query = f"""
     SELECT
-        SUM(total_rejection) AS total_rejected,
+        SUM({stage_rejection_expr}) AS total_rejected,
         SUM(`3de_tech_rejection`) AS de_tech_rejection,
         SUM(ihc_rejection) AS ihc_rejection,
         SUM(vqc_rejection) AS vqc_rejection,
@@ -127,14 +130,21 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     """
 
     # 2. Accepted Vs Rejected Chart
+    # Use stage-specific accepted column
+    accepted_col = 'qc_accepted'
+    if overview_stage == 'FT':
+        accepted_col = 'testing_accepted'
+    elif overview_stage == 'CS':
+        accepted_col = 'moved_to_inventory'
+
     accepted_vs_rejected_query = f"""
-    SELECT 'Accepted' as name, SUM(total_accepted) as value FROM {overview_table} {overview_where}
+    SELECT 'Accepted' as name, SUM({accepted_col}) as value FROM {overview_table} {overview_where}
     UNION ALL
-    SELECT 'RT Conversion' as name, SUM(rt_conversion_count) as value FROM {overview_table} {overview_where}
+    SELECT 'RT Conversion' as name, SUM(stage_rt_conversion_count) as value FROM {overview_table} {overview_where}
     UNION ALL
-    SELECT 'Wabi Sabi' as name, SUM(wabi_sabi_count) as value FROM {overview_table} {overview_where}
+    SELECT 'Wabi Sabi' as name, SUM(stage_wabi_sabi_count) as value FROM {overview_table} {overview_where}
     UNION ALL
-    SELECT 'Scrap' as name, SUM(scrap_count) as value FROM {overview_table} {overview_where}
+    SELECT 'Scrap' as name, SUM(stage_scrap_count) as value FROM {overview_table} {overview_where}
     """
 
     # 3. Rejection Breakdown chart
@@ -150,7 +160,7 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     rejection_trend_query = f"""
     SELECT
         FORMAT_DATE('%Y-%m-%d', event_date) AS day,
-        SUM(total_rejection) AS rejected
+        SUM({stage_rejection_expr}) AS rejected
     FROM {overview_table}
     {overview_where}
     GROUP BY day
