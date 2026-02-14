@@ -47,9 +47,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://fqc-dash.vercel.app",
+        "https://fqc-dash-six.vercel.app",
         "http://localhost:5173",
         "http://localhost:3000"
     ],
+    allow_origin_regex=r"https://fqc-dash.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
