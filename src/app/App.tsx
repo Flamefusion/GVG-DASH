@@ -6,37 +6,38 @@ import Analysis from '@/app/pages/Analysis';
 import Report from '@/app/pages/Report';
 import Forecast from '@/app/pages/Forecast';
 import Search from '@/app/pages/Search';
+import { Login } from '@/app/pages/Login';
 import { Nav } from '@/app/components/Nav';
 import { SpeedInsights } from "@vercel/speed-insights/react"
 import { Analytics } from "@vercel/analytics/react"
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+const AppContent = () => {
   const { isAuthenticated } = useAuth();
+
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Login />;
   }
-  return children;
+
+  return (
+    <>
+      <Nav />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/analysis" element={<Analysis />} />
+        <Route path="/report" element={<Report />} />
+        <Route path="/forecast" element={<Forecast />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  );
 };
 
 export default function App() {
   return (
     <AuthProvider>
       <DashboardProvider>
-        <Nav />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/analysis" element={<Analysis />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/forecast" element={<Forecast />} />
-          <Route 
-            path="/search" 
-            element={
-              <ProtectedRoute>
-                <Search />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
+        <AppContent />
         <Analytics />
         <SpeedInsights />
       </DashboardProvider>
