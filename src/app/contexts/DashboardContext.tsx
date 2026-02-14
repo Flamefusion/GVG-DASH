@@ -317,7 +317,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       setFtWipChart(chartData.ft_wip_sku_wise);
       setAnalysisData(analysisData);
     } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
+      console.error("Failed to fetch dashboard data from URL:", BACKEND_URL, err);
       setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
@@ -344,7 +344,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       setSizes(sizesData.filter((s: string) => s));
       setLines(linesData.filter((s: string) => s));
     } catch (err) {
-      console.error("Failed to fetch filter options:", err);
+      console.error("Failed to fetch filter options from URL:", BACKEND_URL, err);
       setError(`Failed to load filter options: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, []);
