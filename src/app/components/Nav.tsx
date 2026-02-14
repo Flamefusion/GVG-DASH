@@ -5,7 +5,7 @@ import { useDashboard } from '@/app/contexts/DashboardContext';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { LoginModal } from '@/app/components/LoginModal';
-import { LogIn, LogOut, Search, Moon, Sun, Maximize, Minimize, Info } from 'lucide-react';
+import { LogIn, LogOut, Search, Moon, Sun, Maximize, Minimize, Info, BrainCircuit } from 'lucide-react';
 import {
   Dialog,
   DialogTrigger,
@@ -112,6 +112,10 @@ export const Nav: React.FC = () => {
           </NavLink>
           <NavLink to="/report" className={getLinkClass}>
             Report
+          </NavLink>
+          <NavLink to="/forecast" className={getLinkClass}>
+            <BrainCircuit size={16} />
+            Forecast
           </NavLink>
           {isAuthenticated && (
             <NavLink to="/search" className={getLinkClass}>
