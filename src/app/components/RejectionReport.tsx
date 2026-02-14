@@ -114,6 +114,8 @@ export const RejectionReport: React.FC = () => {
 
   if (!rejectionReportData) return <div className="text-center py-10">No data available</div>;
 
+  const totalRejections = rejectionReportData.kpis['TOTAL REJECTIONS'] || 1;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -125,6 +127,8 @@ export const RejectionReport: React.FC = () => {
             icon={item.icon}
             color={item.color}
             onClick={() => {}}
+            percentage={item.key !== 'TOTAL REJECTIONS' ? (rejectionReportData.kpis[item.key] || 0) / totalRejections * 100 : undefined}
+            percentageStyle="inline"
           />
         ))}
       </div>

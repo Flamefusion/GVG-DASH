@@ -31,7 +31,7 @@ export const ChartSection: React.FC = () => {
 
   const currentData = isWabiSabi ? vqcWipChart : (showVQC ? vqcWipChart : ftWipChart);
   const currentTitle = isWabiSabi ? 'WABI SABI WIP SKU WISE' : (showVQC ? 'VQC WIP SKU WISE' : 'FT WIP SKU WISE');
-  const barColor = isWabiSabi ? '#8b5cf6' : (showVQC ? '#f59e0b' : '#10b981');
+  const barColor = isWabiSabi ? '#fb923c' : (showVQC ? '#f59e0b' : '#10b981');
 
   const toggleChart = () => {
     setShowVQC(!showVQC);

@@ -88,7 +88,7 @@ export const Home: React.FC = () => {
       kpiKey: 'qc_accepted',
       value: kpis.qc_accepted,
       icon: CheckCircle,
-      color: '#10b981',
+      color: '#10b981', // Green
       show: !isWabiSabi,
     },
     {
@@ -104,7 +104,7 @@ export const Home: React.FC = () => {
       kpiKey: 'total_rejected',
       value: kpis.total_rejected,
       icon: XCircle,
-      color: '#ef4444',
+      color: '#ef4444', // Red
       show: true,
     },
     {

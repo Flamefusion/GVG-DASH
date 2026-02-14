@@ -24,11 +24,36 @@ export const CategoryReport: React.FC = () => {
 
   if (!categoryReportData) return <div className="text-center py-10">No data available</div>;
 
+  const totalRejection = categoryReportData.kpis["TOTAL REJECTION"] || 1;
+
   const topKpis = [
-    { title: 'TOTAL REJECTION', key: 'TOTAL REJECTION', icon: AlertCircle, color: '#ef4444' },
-    { title: 'RT CONVERSION', key: 'RT CONVERSION', icon: RefreshCw, color: '#3b82f6' },
-    { title: 'WABI SABI', key: 'WABI SABI', icon: Gem, color: '#8b5cf6' },
-    { title: 'SCRAP', key: 'SCRAP', icon: Trash2, color: '#f59e0b' },
+    { 
+      title: 'TOTAL REJECTION', 
+      key: 'TOTAL REJECTION', 
+      icon: AlertCircle, 
+      color: '#ef4444' // Red
+    },
+    { 
+      title: 'RT CONVERSION', 
+      key: 'RT CONVERSION', 
+      icon: RefreshCw, 
+      color: '#f59e0b', // Yellow/Amber
+      percentage: ((categoryReportData.kpis['RT CONVERSION'] || 0) / totalRejection) * 100
+    },
+    { 
+      title: 'WABI SABI', 
+      key: 'WABI SABI', 
+      icon: Gem, 
+      color: '#fb923c', // Orange (Tailwind orange-400 equivalent for a vibrant look)
+      percentage: ((categoryReportData.kpis['WABI SABI'] || 0) / totalRejection) * 100
+    },
+    { 
+      title: 'SCRAP', 
+      key: 'SCRAP', 
+      icon: Trash2, 
+      color: '#ef4444', // Red
+      percentage: ((categoryReportData.kpis['SCRAP'] || 0) / totalRejection) * 100
+    },
   ];
 
   const breakdownCategories = [
@@ -59,6 +84,8 @@ export const CategoryReport: React.FC = () => {
               icon={kpi.icon}
               color={kpi.color}
               onClick={() => {}}
+              percentage={kpi.percentage}
+              percentageStyle="side"
             />
           </motion.div>
         ))}
@@ -89,7 +116,7 @@ export const CategoryReport: React.FC = () => {
               <Card className={`h-full flex flex-col border ${darkMode ? 'bg-black border-white/20' : 'bg-white'}`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
-                    {cat.title}
+                    {cat.title} <span className="ml-3">({percentage}%)</span>
                   </CardTitle>
                   <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
                 </CardHeader>
@@ -97,9 +124,6 @@ export const CategoryReport: React.FC = () => {
                   <div className="flex items-baseline gap-2 mb-4">
                     <div className={`text-3xl font-extrabold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                       {total}
-                    </div>
-                    <div className={`text-sm font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      ({percentage}%)
                     </div>
                   </div>
                   <div className="space-y-3">

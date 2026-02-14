@@ -123,14 +123,14 @@ const Report: React.FC = () => {
       title: 'ACCEPTED',
       value: reportData.kpis.accepted,
       icon: CheckCircle,
-      color: '#10b981',
+      color: '#10b981', // Green
       show: true,
     },
     {
       title: 'REJECTED',
       value: reportData.kpis.rejected,
       icon: XCircle,
-      color: '#ef4444',
+      color: '#ef4444', // Red
       show: true,
     },
     {
