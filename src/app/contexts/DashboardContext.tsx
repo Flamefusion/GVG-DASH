@@ -193,7 +193,10 @@ const getMonthDateRange = () => {
 };
 
 export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('dark_mode');
+    return saved === 'true';
+  });
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: getMonthDateRange(),
@@ -386,6 +389,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [isFullScreen]);
 
   useEffect(() => {
+    localStorage.setItem('dark_mode', darkMode.toString());
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
