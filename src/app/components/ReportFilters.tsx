@@ -62,6 +62,24 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
     }));
   };
 
+  const toggleAllSizes = () => {
+    const activeSizes = sizes.filter(s => s && s.trim() !== '');
+    if (localFilters.selectedSizes.length === activeSizes.length) {
+      setLocalFilters(prev => ({ ...prev, selectedSizes: [] }));
+    } else {
+      setLocalFilters(prev => ({ ...prev, selectedSizes: activeSizes }));
+    }
+  };
+
+  const toggleAllSkus = () => {
+    const activeSkus = skus.filter(s => s && s.trim() !== '');
+    if (localFilters.selectedSkus.length === activeSkus.length) {
+      setLocalFilters(prev => ({ ...prev, selectedSkus: [] }));
+    } else {
+      setLocalFilters(prev => ({ ...prev, selectedSkus: activeSkus }));
+    }
+  };
+
   const getStageOptions = (line: string) => {
     if (localFilters.reportType === 'Category') {
       return ['VQC'];
@@ -156,6 +174,10 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
             <CommandList>
               <CommandEmpty>No size found.</CommandEmpty>
               <CommandGroup>
+                <CommandItem onSelect={toggleAllSizes} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                  <Checkbox checked={localFilters.selectedSizes.length === sizes.filter(s => s && s.trim() !== '').length && sizes.filter(s => s && s.trim() !== '').length > 0} />
+                  Select All
+                </CommandItem>
                 <ScrollArea className="h-48">
                   {sizes.filter(s => s && s.trim() !== '').map((size) => (
                     <CommandItem key={size} onSelect={() => toggleSize(size)} className="flex items-center gap-2 cursor-pointer">
@@ -184,6 +206,10 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
             <CommandList>
               <CommandEmpty>No SKU found.</CommandEmpty>
               <CommandGroup>
+                <CommandItem onSelect={toggleAllSkus} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                  <Checkbox checked={localFilters.selectedSkus.length === skus.filter(s => s && s.trim() !== '').length && skus.filter(s => s && s.trim() !== '').length > 0} />
+                  Select All
+                </CommandItem>
                 <ScrollArea className="h-48">
                   {skus.filter(s => s && s.trim() !== '').map((sku) => (
                     <CommandItem key={sku} onSelect={() => toggleSku(sku)} className="flex items-center gap-2 cursor-pointer">
