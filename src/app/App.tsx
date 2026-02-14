@@ -6,6 +6,8 @@ import Analysis from '@/app/pages/Analysis';
 import Report from '@/app/pages/Report';
 import Search from '@/app/pages/Search';
 import { Nav } from '@/app/components/Nav';
+import { SpeedInsights } from "@vercel/speed-insights/react"
+import { Analytics } from "@vercel/analytics/react"
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated } = useAuth();
@@ -33,6 +35,8 @@ export default function App() {
             } 
           />
         </Routes>
+        <Analytics />
+        <SpeedInsights />
       </DashboardProvider>
     </AuthProvider>
   );
