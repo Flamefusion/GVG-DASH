@@ -93,6 +93,17 @@ export interface CategoryReportData {
   };
 }
 
+export interface ForecastData {
+  kpis: {
+    forecasted_yield: number;
+    predicted_vqc_reject: number;
+    predicted_ft_reject: number;
+    predicted_cs_reject: number;
+  };
+  yieldTrend: Array<{ day: string; predicted_yield: number }>;
+  topPredictedRejections: Array<{ name: string; value: number }>;
+}
+
 export interface AnalysisData {
   kpis: AnalysisKPIs;
   acceptedVsRejected: AnalysisChartData[];
@@ -160,6 +171,8 @@ interface DashboardContextType {
   setRejectionReportData: (data: RejectionReportData | null) => void;
   categoryReportData: CategoryReportData | null;
   setCategoryReportData: (data: CategoryReportData | null) => void;
+  forecastData: ForecastData | null;
+  setForecastData: (data: ForecastData | null) => void;
   skus: string[];
   sizes: string[];
   lines: string[];
@@ -228,6 +241,7 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   });
   const [rejectionReportData, setRejectionReportData] = useState<RejectionReportData | null>(null);
   const [categoryReportData, setCategoryReportData] = useState<CategoryReportData | null>(null);
+  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [skus, setSkus] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [lines, setLines] = useState<string[]>([]);
@@ -405,6 +419,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         setRejectionReportData,
         categoryReportData,
         setCategoryReportData,
+        forecastData,
+        setForecastData,
         skus,
         sizes,
         lines,

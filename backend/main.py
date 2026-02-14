@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, timedelta
-from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data, get_category_report_data
+from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data, get_category_report_data, get_forecast_data
 from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 # Load environment variables from .env file
@@ -70,6 +70,23 @@ except Exception as e:
     RING_STATUS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.ring_status`"
     REJECTION_ANALYSIS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{settings.REJECTION_ANALYSIS_TABLE_ID}`"
     USERS_TABLE = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.users`"
+
+@app.get("/forecast")
+async def get_forecast(
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None,
+    vendor: str = Query('all', description="Vendor name"),
+    sizes: Optional[List[str]] = Query(None, alias="size"),
+    skus: Optional[List[str]] = Query(None, alias="sku"),
+    line: Optional[str] = None
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    try:
+        data = get_forecast_data(client, start_date, end_date, vendor, sizes, skus, line)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting forecast data: {e}")
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):

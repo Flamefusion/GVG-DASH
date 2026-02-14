@@ -586,3 +586,123 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
         "kpis": kpis,
         "breakdown": breakdown
     }
+
+def get_forecast_data(client: bigquery.Client, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
+    # 1. Base filters
+    base_start = start_date if start_date else (date.today() - timedelta(days=30))
+    base_end = end_date if end_date else date.today()
+    
+    # Master table where clause
+    where_master, query_parameters = build_where_clause(base_start, base_end, sizes, skus, 'vqc_inward_date', 'sku', 'size', line, vendor=vendor)
+    # Rejection table where clause (uses 'date' column)
+    where_rej, _ = build_where_clause(base_start, base_end, sizes, skus, 'date', 'sku', 'size', line, vendor=vendor)
+    
+    # Common JOIN clause to avoid ambiguity
+    join_using = "USING(serial_number, vendor, sku, size, line, pcb)"
+
+    # Prediction Query for KPIs
+    prediction_query = f"""
+    WITH distribution AS (
+        SELECT vendor, sku, size, line, pcb,
+               EXTRACT(DAYOFWEEK FROM DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY)) as day_of_week,
+               EXTRACT(MONTH FROM DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY)) as month
+        FROM `production-dashboard-482014.dashboard_data.master_station_data`
+        JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
+        {where_master}
+        LIMIT 2000
+    ),
+    vqc_preds AS (
+        SELECT AVG(p.prob) as vqc_prob
+        FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_vqc_prediction`, (SELECT * FROM distribution)),
+        UNNEST(predicted_is_vqc_rejected_probs) as p WHERE p.label = 1
+    ),
+    ft_preds AS (
+        SELECT AVG(p.prob) as ft_prob
+        FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_ft_prediction`, (SELECT * FROM distribution)),
+        UNNEST(predicted_is_ft_rejected_probs) as p WHERE p.label = 1
+    ),
+    cs_preds AS (
+        SELECT AVG(p.prob) as cs_prob
+        FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_cs_prediction`, (SELECT * FROM distribution)),
+        UNNEST(predicted_is_cs_rejected_probs) as p WHERE p.label = 1
+    )
+    SELECT 
+        COALESCE(vqc_prob, 0) as vqc_prob,
+        COALESCE(ft_prob, 0) as ft_prob,
+        COALESCE(cs_prob, 0) as cs_prob
+    FROM (SELECT 1) 
+    LEFT JOIN vqc_preds ON 1=1
+    LEFT JOIN ft_preds ON 1=1
+    LEFT JOIN cs_preds ON 1=1
+    """
+
+    # Upcoming 7 Days Yield Forecast
+    yield_forecast_query = f"""
+    WITH date_series AS (
+        SELECT d as forecast_date FROM UNNEST(GENERATE_DATE_ARRAY(DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY))) as d
+    ),
+    base_dist AS (
+        SELECT vendor, sku, size, line, pcb FROM `production-dashboard-482014.dashboard_data.master_station_data`
+        JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
+        {where_master} LIMIT 200
+    ),
+    forecast_features AS (
+        SELECT b.*, EXTRACT(DAYOFWEEK FROM d.forecast_date) as day_of_week, EXTRACT(MONTH FROM d.forecast_date) as month, d.forecast_date
+        FROM base_dist b CROSS JOIN date_series d
+    ),
+    v_p AS (SELECT forecast_date, AVG(p.prob) as v FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_vqc_prediction`, (SELECT * FROM forecast_features)), UNNEST(predicted_is_vqc_rejected_probs) as p WHERE p.label = 1 GROUP BY 1),
+    f_p AS (SELECT forecast_date, AVG(p.prob) as f FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_ft_prediction`, (SELECT * FROM forecast_features)), UNNEST(predicted_is_ft_rejected_probs) as p WHERE p.label = 1 GROUP BY 1),
+    c_p AS (SELECT forecast_date, AVG(p.prob) as c FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_cs_prediction`, (SELECT * FROM forecast_features)), UNNEST(predicted_is_cs_rejected_probs) as p WHERE p.label = 1 GROUP BY 1)
+    SELECT FORMAT_DATE('%a, %d %b', forecast_date) as day, ROUND((1-COALESCE(v,0))*(1-COALESCE(f,0))*(1-COALESCE(c,0))*100, 1) as predicted_yield
+    FROM date_series LEFT JOIN v_p USING(forecast_date) LEFT JOIN f_p USING(forecast_date) LEFT JOIN c_p USING(forecast_date)
+    ORDER BY forecast_date
+    """
+
+    # Predicted Top Rejection Reasons
+    rejection_forecast_query = f"""
+    WITH high_risk AS (
+        SELECT sku, AVG(p.prob) as risk
+        FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_vqc_prediction`, (
+            SELECT vendor, sku, size, line, pcb, 
+                   EXTRACT(DAYOFWEEK FROM CURRENT_DATE()) as day_of_week, 
+                   EXTRACT(MONTH FROM CURRENT_DATE()) as month 
+            FROM `production-dashboard-482014.dashboard_data.master_station_data`
+            JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
+            {where_master}
+            LIMIT 1000
+        )),
+        UNNEST(predicted_is_vqc_rejected_probs) as p WHERE p.label = 1 GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+    )
+    SELECT vqc_reason as name, SUM(count) as value 
+    FROM `production-dashboard-482014.dashboard_data.rejection_analysis` 
+    JOIN high_risk USING(sku) 
+    {where_rej} 
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+    """
+
+    try:
+        job_config = QueryJobConfig(query_parameters=query_parameters)
+        preds_res = list(client.query(prediction_query, job_config=job_config).result())
+        preds = preds_res[0] if preds_res else {"vqc_prob": 0, "ft_prob": 0, "cs_prob": 0}
+        
+        yield_data = [dict(row) for row in client.query(yield_forecast_query, job_config=job_config).result()]
+        rejection_data = [dict(row) for row in client.query(rejection_forecast_query, job_config=job_config).result()]
+
+        vqc_reject = round(preds['vqc_prob'] * 100, 1)
+        ft_reject = round(preds['ft_prob'] * 100, 1)
+        cs_reject = round(preds['cs_prob'] * 100, 1)
+        forecasted_yield = round((1 - preds['vqc_prob']) * (1 - preds['ft_prob']) * (1 - preds['cs_prob']) * 100, 1)
+
+        return {
+            "kpis": {
+                "forecasted_yield": forecasted_yield,
+                "predicted_vqc_reject": vqc_reject,
+                "predicted_ft_reject": ft_reject,
+                "predicted_cs_reject": cs_reject
+            },
+            "yieldTrend": yield_data,
+            "topPredictedRejections": rejection_data
+        }
+    except Exception as e:
+        print(f"Forecast Query Error: {e}")
+        return {"error": str(e)}

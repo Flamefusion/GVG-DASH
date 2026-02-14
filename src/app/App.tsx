@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/app/contexts/AuthContext';
 import { Home } from '@/app/pages/Home';
 import Analysis from '@/app/pages/Analysis';
 import Report from '@/app/pages/Report';
+import Forecast from '@/app/pages/Forecast';
 import Search from '@/app/pages/Search';
 import { Nav } from '@/app/components/Nav';
 import { SpeedInsights } from "@vercel/speed-insights/react"
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/report" element={<Report />} />
+          <Route path="/forecast" element={<Forecast />} />
           <Route 
             path="/search" 
             element={
