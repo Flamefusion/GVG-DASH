@@ -217,6 +217,24 @@ const Search: React.FC = () => {
     }));
   };
 
+  const toggleAllSizes = () => {
+    const activeSizes = sizesList.filter(s => s && s.trim() !== '');
+    if (searchFilters.selectedSizes.length === activeSizes.length) {
+      setSearchFilters(prev => ({ ...prev, selectedSizes: [] }));
+    } else {
+      setSearchFilters(prev => ({ ...prev, selectedSizes: activeSizes }));
+    }
+  };
+
+  const toggleAllSkus = () => {
+    const activeSkus = skusList.filter(s => s && s.trim() !== '');
+    if (searchFilters.selectedSkus.length === activeSkus.length) {
+      setSearchFilters(prev => ({ ...prev, selectedSkus: [] }));
+    } else {
+      setSearchFilters(prev => ({ ...prev, selectedSkus: activeSkus }));
+    }
+  };
+
   const clearFilters = () => {
     setSearchFilters({
       serialNumbers: '',
@@ -371,6 +389,10 @@ const Search: React.FC = () => {
                           <CommandList>
                             <CommandEmpty>No size found.</CommandEmpty>
                             <CommandGroup>
+                              <CommandItem onSelect={toggleAllSizes} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                                <Checkbox checked={searchFilters.selectedSizes.length === sizesList.filter(s => s && s.trim() !== '').length && sizesList.filter(s => s && s.trim() !== '').length > 0} />
+                                Select All
+                              </CommandItem>
                               <ScrollArea className="h-48">
                                 {sizesList.filter(s => s && s.trim() !== '').map((size) => (
                                   <CommandItem key={size} onSelect={() => toggleSize(size)} className="flex items-center gap-2 cursor-pointer">
@@ -401,6 +423,10 @@ const Search: React.FC = () => {
                           <CommandList>
                             <CommandEmpty>No SKU found.</CommandEmpty>
                             <CommandGroup>
+                              <CommandItem onSelect={toggleAllSkus} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                                <Checkbox checked={searchFilters.selectedSkus.length === skusList.filter(s => s && s.trim() !== '').length && skusList.filter(s => s && s.trim() !== '').length > 0} />
+                                Select All
+                              </CommandItem>
                               <ScrollArea className="h-48">
                                 {skusList.filter(sku => sku && sku.trim() !== '').map((sku) => (
                                   <CommandItem key={sku} onSelect={() => toggleSku(sku)} className="flex items-center gap-2 cursor-pointer">

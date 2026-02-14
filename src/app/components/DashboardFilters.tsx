@@ -34,6 +34,24 @@ export const DashboardFilters: React.FC = () => {
     });
   };
 
+  const toggleAllSizes = () => {
+    const activeSizes = sizes.filter(s => s && s.trim() !== '');
+    if (filters.selectedSizes.length === activeSizes.length) {
+      setFilters({ ...filters, selectedSizes: [] });
+    } else {
+      setFilters({ ...filters, selectedSizes: activeSizes });
+    }
+  };
+
+  const toggleAllSkus = () => {
+    const activeSkus = skus.filter(s => s && s.trim() !== '');
+    if (filters.selectedSkus.length === activeSkus.length) {
+      setFilters({ ...filters, selectedSkus: [] });
+    } else {
+      setFilters({ ...filters, selectedSkus: activeSkus });
+    }
+  };
+
   const getStageOptions = (line: string) => {
     const upperLine = line.toUpperCase();
     if (upperLine === 'WABI SABI') {
@@ -112,6 +130,10 @@ export const DashboardFilters: React.FC = () => {
             <CommandList>
               <CommandEmpty>No size found.</CommandEmpty>
               <CommandGroup>
+                <CommandItem onSelect={toggleAllSizes} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                  <Checkbox checked={filters.selectedSizes.length === sizes.filter(s => s && s.trim() !== '').length && sizes.filter(s => s && s.trim() !== '').length > 0} />
+                  Select All
+                </CommandItem>
                 <ScrollArea className="h-48">
                   {sizes.filter(s => s && s.trim() !== '').map((size) => (
                     <CommandItem key={size} onSelect={() => toggleSize(size)} className="flex items-center gap-2 cursor-pointer">
@@ -140,6 +162,10 @@ export const DashboardFilters: React.FC = () => {
             <CommandList>
               <CommandEmpty>No SKU found.</CommandEmpty>
               <CommandGroup>
+                <CommandItem onSelect={toggleAllSkus} className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-1">
+                  <Checkbox checked={filters.selectedSkus.length === skus.filter(s => s && s.trim() !== '').length && skus.filter(s => s && s.trim() !== '').length > 0} />
+                  Select All
+                </CommandItem>
                 <ScrollArea className="h-48">
                   {skus.filter(s => s && s.trim() !== '').map((sku) => (
                     <CommandItem key={sku} onSelect={() => toggleSku(sku)} className="flex items-center gap-2 cursor-pointer">
