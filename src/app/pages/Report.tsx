@@ -158,20 +158,12 @@ const Report: React.FC = () => {
       ? format(reportFilters.dateRange.from, 'd-M-yy') + (reportFilters.dateRange.to && reportFilters.dateRange.to !== reportFilters.dateRange.from ? ` to ${format(reportFilters.dateRange.to, 'd-M-yy')}` : '')
       : 'ALL TIME';
     
-    if (reportFilters.reportType === 'Category') {
-      const { categoryReportData } = useDashboard(); // This won't work in a callback, need to use the one from scope
-      // Actually, categoryReportData is available in the outer scope
-    }
-
     const vendorStr = reportFilters.stage === 'FT' ? 'FT' : (reportFilters.vendor === 'all' ? 'ALL VENDORS' : reportFilters.vendor);
     
     let content = "";
     let fileName = "";
 
     if (reportFilters.reportType === 'Category' && categoryReportData) {
-      // Find the currently selected outcome from the UI if possible, 
-      // but for simplicity, we export the summary or we need to pass the selected state up.
-      // Let's export ALL categories in one file for Category Report.
       content = `*CATEGORY REPORT SUMMARY FOR ${dateStr}*\n\n`;
       const outcomes = ["TOTAL REJECTION", "RT CONVERSION", "WABI SABI", "SCRAP"];
       
@@ -189,6 +181,23 @@ const Report: React.FC = () => {
         content += '\n';
       });
       fileName = `CATEGORY_REPORT_SUMMARY_${dateStr}.csv`;
+    } else if (reportFilters.reportType === 'Rejection' && rejectionReportData) {
+      const dateHeaders = rejectionReportData.dates.map(d => format(new Date(d), 'dd-MMM-yy'));
+      const headers = ['Stage', 'Rejection Type', ...dateHeaders, 'Total'];
+      const csvRows = [headers.join(',')];
+      
+      rejectionReportData.table_data.forEach(row => {
+        const rowValues = [
+          row.stage,
+          `"${row.rejection_type}"`,
+          ...rejectionReportData.dates.map(d => row[d] || 0),
+          row.total
+        ];
+        csvRows.push(rowValues.join(','));
+      });
+      content = csvRows.join('\n');
+      const dateStrFile = reportFilters.dateRange.from ? format(reportFilters.dateRange.from, 'MMMM_yyyy') : 'ALL_TIME';
+      fileName = `@${dateStrFile} month data.csv`;
     } else {
       content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
       content += `OUTPUT - ${reportData.kpis.output}\n`;
@@ -227,7 +236,7 @@ const Report: React.FC = () => {
         <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           Reports
         </h1>
-        {(reportFilters.reportType === 'Daily' || reportFilters.reportType === 'Category') && (
+        {(reportFilters.reportType === 'Daily' || reportFilters.reportType === 'Category' || reportFilters.reportType === 'Rejection') && (
           <Button onClick={handleExport} className="flex items-center gap-2">
             <Download size={16} />
             Export CSV
