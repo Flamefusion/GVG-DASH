@@ -280,56 +280,34 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
 
-    table_to_use = TABLE
-    sku_col = 'sku'
-    size_col = 'size'
-    date_col = date_column
+    wip_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.wip_sku_wise`"
 
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_col, sku_col, size_col, line)
-
-    vqc_wip_conditions = [
-        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
-        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
-        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
-        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
-        "vqc_inward_date IS NOT NULL",
-        "ft_inward_date IS NULL"
-    ]
-    vqc_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, vqc_wip_conditions)
-
-    ft_wip_conditions = [
-        "(UPPER(vqc_status) NOT IN ('SCRAP', 'WABI SABI', 'RT CONVERSION') OR vqc_status IS NULL)",
-        "(UPPER(ft_status) NOT IN ('REJECTED', 'AESTHETIC SCRAP', 'FUNCTIONAL BUT REJECTED', 'SCRAP', 'SHELL RELATED', 'WABI SABI', 'FUNCTIONAL REJECTION') OR ft_status IS NULL)",
-        "(UPPER(cs_status) != 'REJECTED' OR cs_status IS NULL)",
-        "(cs_status != 'ACCEPTED' OR cs_status IS NULL)",
-        "vqc_inward_date IS NOT NULL",
-        "ft_inward_date IS NOT NULL"
-    ]
-    ft_wip_where_clause_str, _ = combine_where_clauses(base_where_clause_str, query_parameters, ft_wip_conditions)
-
+    # VQC WIP Query
+    vqc_where, vqc_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, stage='VQC')
     vqc_wip_query = f"""
-    SELECT {sku_col} as sku, COUNT(DISTINCT serial_number) AS count
-    FROM {table_to_use}
-    {vqc_wip_where_clause_str}
-    GROUP BY {sku_col}
+    SELECT sku, SUM(wip_count) as count
+    FROM {wip_table}
+    {vqc_where}
+    GROUP BY sku
     ORDER BY sku ASC
     """
 
+    # FT WIP Query
+    ft_where, ft_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, stage='FT')
     ft_wip_query = f"""
-    SELECT {sku_col} as sku, COUNT(DISTINCT serial_number) AS count
-    FROM {table_to_use}
-    {ft_wip_where_clause_str}
-    GROUP BY {sku_col}
+    SELECT sku, SUM(wip_count) as count
+    FROM {wip_table}
+    {ft_where}
+    GROUP BY sku
     ORDER BY sku ASC
     """
-    try:
-        job_config_vqc = QueryJobConfig(query_parameters=query_parameters)
-        vqc_wip_job = client.query(vqc_wip_query, job_config=job_config_vqc)
-        vqc_wip_results = [dict(row) for row in vqc_wip_job.result()]
 
-        job_config_ft = QueryJobConfig(query_parameters=query_parameters)
-        ft_wip_job = client.query(ft_wip_query, job_config=job_config_ft)
-        ft_wip_results = [dict(row) for row in ft_wip_job.result()]
+    try:
+        vqc_job = client.query(vqc_wip_query, job_config=QueryJobConfig(query_parameters=vqc_params))
+        vqc_wip_results = [dict(row) for row in vqc_job.result()]
+
+        ft_job = client.query(ft_wip_query, job_config=QueryJobConfig(query_parameters=ft_params))
+        ft_wip_results = [dict(row) for row in ft_job.result()]
 
         return {
             "vqc_wip_sku_wise": vqc_wip_results,
