@@ -1,11 +1,10 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
-import { LoginModal } from '@/app/components/LoginModal';
-import { LogIn, LogOut, Search, Moon, Sun, Maximize, Minimize, Info, BrainCircuit } from 'lucide-react';
+import { LogOut, Search, Moon, Sun, Maximize, Minimize, Info, BrainCircuit, User } from 'lucide-react';
 import {
   Dialog,
   DialogTrigger,
@@ -14,11 +13,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/app/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/app/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 
 export const Nav: React.FC = () => {
   const { darkMode, toggleDarkMode, isFullScreen, toggleFullScreen } = useDashboard();
-  const { isAuthenticated, logout } = useAuth();
-  const [loginOpen, setLoginOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 border ${
@@ -28,129 +35,131 @@ export const Nav: React.FC = () => {
     }`;
 
   return (
-    <>
-      <nav className={`p-4 flex justify-between items-center ${darkMode ? 'bg-black border-b border-white/10' : 'bg-gray-100'}`}>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={toggleDarkMode}
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9"
-          >
-            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </Button>
-          <Button
-            onClick={toggleFullScreen}
-            variant="outline"
-            size="icon"
-            className="rounded-full h-9 w-9"
-          >
-            {isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}
-          </Button>
-          
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full h-9 w-9">
-                <Info size={18} />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className={darkMode ? 'dark:bg-black dark:text-white border-white/20' : ''}>
-              <DialogHeader>
-                <DialogTitle>How to Use This Dashboard</DialogTitle>
-                <DialogDescription>
-                  This dashboard provides an overview of Quality Control processes.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="mt-4 text-left">
-                <h3 className="text-lg font-semibold mb-2">1. Understanding Filters:</h3>
-                <p className="mb-2">
-                  The dashboard features a dynamic filtering system. The <strong>'Stage'</strong> filter
-                  is crucial as it dictates which date field is used for filtering and which underlying
-                  data table is queried.
-                </p>
-                <ul className="list-disc list-inside ml-4 mb-4">
-                  <li>
-                    <strong>VQC Stage (Default):</strong> Uses vqc inward date from <strong>step 7</strong> sheet for date filtering.
-                  </li>
-                  <li>
-                    <strong>FT Stage:</strong> Uses ft inward date from <strong>step 8</strong> sheet for date filtering.
-                  </li>
-                  <li>
-                    <strong>CS Stage:</strong> Uses cs complete date from <strong>Charging Station - 2</strong> sheet for date filtering.
-                  </li>
-                  <li>
-                    <strong>RT Stage:</strong> Uses vqc inward date from <strong>RT CONVERSION 2.0</strong> sheet for date filtering.
-                  </li>
-                  <li>
-                    <strong>RT CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering.
-                  </li>
-                  <li>
-                    <strong>WABI SABI Stage:</strong> Data comes from <strong>FQC L1</strong> sheet.
-                  </li>
-                </ul>
-                <h3 className="text-lg font-semibold mb-2">2. Dashboard Use Scenarios:</h3>
-                <ul className="list-disc list-inside ml-4 mb-4">
-                  <li><strong>Track WIP:</strong> Monitor Work In Progress across all stages.</li>
-                  <li><strong>Download KPI Data:</strong> Click any KPI card to download raw data.</li>
-                  <li><strong>Visualize Quality Data:</strong> Use the Analysis page for trends.</li>
-                  <li><strong>Generate Reports:</strong> Use the Report page for structured exports.</li>
-                </ul>
-                <div className="mt-6 p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-sm italic">
-                  We are open to feedback and we appreciate your review. Feel free to speak about it and if anything is broken or not right, inform us so we can fix it as soon as possible. Testing all the numbers and filters on our own is not possible, so we encourage your use.
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+    <nav className={`p-4 flex justify-between items-center ${darkMode ? 'bg-black border-b border-white/10' : 'bg-gray-100'}`}>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={toggleDarkMode}
+          variant="outline"
+          size="icon"
+          className="rounded-full h-9 w-9"
+        >
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+        </Button>
+        <Button
+          onClick={toggleFullScreen}
+          variant="outline"
+          size="icon"
+          className="rounded-full h-9 w-9"
+        >
+          {isFullScreen ? <Minimize size={18} /> : <Maximize size={18} />}
+        </Button>
         
-        <div className={`flex space-x-2 p-1 rounded-lg border ${darkMode ? 'bg-gray-900 border-white/10' : 'bg-white border-transparent'}`}>
-          <NavLink to="/" className={getLinkClass}>
-            Home
-          </NavLink>
-          <NavLink to="/analysis" className={getLinkClass}>
-            Analysis
-          </NavLink>
-          <NavLink to="/report" className={getLinkClass}>
-            Report
-          </NavLink>
-          <NavLink to="/forecast" className={getLinkClass}>
-            <BrainCircuit size={16} />
-            Forecast
-          </NavLink>
-          {isAuthenticated && (
-            <NavLink to="/search" className={getLinkClass}>
-              <Search size={16} />
-              Search
-            </NavLink>
-          )}
-        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="icon" className="rounded-full h-9 w-9">
+              <Info size={18} />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className={darkMode ? 'dark:bg-black dark:text-white border-white/20' : ''}>
+            <DialogHeader>
+              <DialogTitle>How to Use This Dashboard</DialogTitle>
+              <DialogDescription>
+                This dashboard provides an overview of Quality Control processes.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 text-left">
+              <h3 className="text-lg font-semibold mb-2">1. Understanding Filters:</h3>
+              <p className="mb-2">
+                The dashboard features a dynamic filtering system. The <strong>'Stage'</strong> filter
+                is crucial as it dictates which date field is used for filtering and which underlying
+                data table is queried.
+              </p>
+              <ul className="list-disc list-inside ml-4 mb-4">
+                <li>
+                  <strong>VQC Stage (Default):</strong> Uses vqc inward date from <strong>step 7</strong> sheet for date filtering.
+                </li>
+                <li>
+                  <strong>FT Stage:</strong> Uses ft inward date from <strong>step 8</strong> sheet for date filtering.
+                </li>
+                <li>
+                  <strong>CS Stage:</strong> Uses cs complete date from <strong>Charging Station - 2</strong> sheet for date filtering.
+                </li>
+                <li>
+                  <strong>RT Stage:</strong> Uses vqc inward date from <strong>RT CONVERSION 2.0</strong> sheet for date filtering.
+                </li>
+                <li>
+                  <strong>RT CS Stage:</strong> Uses <code>cs_comp_date</code> for date filtering.
+                </li>
+                <li>
+                  <strong>WABI SABI Stage:</strong> Data comes from <strong>FQC L1</strong> sheet.
+                </li>
+              </ul>
+              <h3 className="text-lg font-semibold mb-2">2. Dashboard Use Scenarios:</h3>
+              <ul className="list-disc list-inside ml-4 mb-4">
+                <li><strong>Track WIP:</strong> Monitor Work In Progress across all stages.</li>
+                <li><strong>Download KPI Data:</strong> Click any KPI card to download raw data.</li>
+                <li><strong>Visualize Quality Data:</strong> Use the Analysis page for trends.</li>
+                <li><strong>Generate Reports:</strong> Use the Report page for structured exports.</li>
+              </ul>
+              <div className="mt-6 p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-sm italic">
+                We are open to feedback and we appreciate your review. Feel free to speak about it and if anything is broken or not right, inform us so we can fix it as soon as possible. Testing all the numbers and filters on our own is not possible, so we encourage your use.
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      
+      <div className={`flex space-x-2 p-1 rounded-lg border ${darkMode ? 'bg-gray-900 border-white/10' : 'bg-white border-transparent'}`}>
+        <NavLink to="/" className={getLinkClass}>
+          Home
+        </NavLink>
+        <NavLink to="/analysis" className={getLinkClass}>
+          Analysis
+        </NavLink>
+        <NavLink to="/report" className={getLinkClass}>
+          Report
+        </NavLink>
+        <NavLink to="/forecast" className={getLinkClass}>
+          <BrainCircuit size={16} />
+          Forecast
+        </NavLink>
+        <NavLink to="/search" className={getLinkClass}>
+          <Search size={16} />
+          Search
+        </NavLink>
+      </div>
 
-        <div className="w-24 flex justify-end">
-          {isAuthenticated ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
+      <div className="w-24 flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className={darkMode ? 'bg-indigo-600 text-white' : 'bg-blue-500 text-white'}>
+                  <User size={18} />
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className={`w-56 ${darkMode ? 'bg-gray-900 text-white border-white/10' : ''}`} align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">Account</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className={darkMode ? 'bg-white/10' : ''} />
+            <DropdownMenuItem 
               onClick={logout}
-              className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}
+              className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
             >
-              <LogOut size={16} />
-              Logout
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setLoginOpen(true)}
-              className={`flex items-center gap-2 ${darkMode ? 'text-white' : ''}`}
-            >
-              <LogIn size={16} />
-              Login
-            </Button>
-          )}
-        </div>
-      </nav>
-
-      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
-    </>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </nav>
   );
 };
