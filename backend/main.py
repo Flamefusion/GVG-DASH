@@ -185,12 +185,16 @@ async def get_rejection_report(
     vendor: str = Query('all', description="Vendor name"),
     sizes: Optional[List[str]] = Query(None, alias="size"),
     skus: Optional[List[str]] = Query(None, alias="sku"),
-    line: Optional[str] = None
+    line: Optional[str] = None,
+    download: bool = False
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
         data = get_rejection_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus, line)
+        if download:
+            # Flatten/prepare data for CSV if needed, or just return the table_data which is already row-based
+            return {"data": data.get('table_data', [])}
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting rejection report data: {e}")
@@ -202,12 +206,15 @@ async def get_category_report(
     vendor: str = Query('all', description="Vendor name"),
     sizes: Optional[List[str]] = Query(None, alias="size"),
     skus: Optional[List[str]] = Query(None, alias="sku"),
-    line: Optional[str] = None
+    line: Optional[str] = None,
+    download: bool = False
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     try:
-        data = get_category_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus, line)
+        data = get_category_report_data(client, REJECTION_ANALYSIS_TABLE, start_date, end_date, vendor, sizes, skus, line, download=download)
+        if download:
+             return {"data": data}
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting category report data: {e}")

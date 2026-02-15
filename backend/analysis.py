@@ -348,7 +348,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         "rejections": grouped_rejections
     }
 
-def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, stage: str, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
+def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, stage: str, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None, download: bool = False):
     where_conditions = []
     query_parameters = []
 
@@ -395,6 +395,10 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
         job_config = QueryJobConfig(query_parameters=query_parameters)
         job = client.query(query, job_config=job_config)
         rows = [dict(row) for row in job.result()]
+        
+        if download:
+            return {"table_data": rows}
+            
     except Exception as e:
         print(f"Rejection Report Query Error: {e}")
         return {"error": str(e)}
@@ -482,7 +486,7 @@ def get_rejection_report_data(client: bigquery.Client, rejection_analysis_table:
         "dates": sorted_dates
     }
 
-def get_category_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
+def get_category_report_data(client: bigquery.Client, rejection_analysis_table: str, start_date: date, end_date: date, vendor: Optional[str] = 'all', sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None, download: bool = False):
     # Only stage VQC is allowed for this report as per user request
     where_conditions = ["stage = 'VQC'"]
     query_parameters = []
@@ -525,6 +529,10 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
         job_config = QueryJobConfig(query_parameters=query_parameters)
         job = client.query(query, job_config=job_config)
         rows = [dict(row) for row in job.result()]
+        
+        if download:
+            return rows
+            
     except Exception as e:
         print(f"Category Report Query Error: {e}")
         return {"error": str(e)}
