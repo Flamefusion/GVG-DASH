@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { ScrollArea } from '@/app/components/ui/scroll-area';
 
 const Report: React.FC = () => {
-  const { darkMode, reportFilters, reportData, setReportData, setCategoryReportData } = useDashboard();
+  const { darkMode, reportFilters, reportData, setReportData, rejectionReportData, categoryReportData, setCategoryReportData } = useDashboard();
   const [loading, setLoading] = useState(false);
 
   const fetchCategoryData = async (currentFilters: any) => {
@@ -164,41 +164,66 @@ const Report: React.FC = () => {
     let fileName = "";
 
     if (reportFilters.reportType === 'Category' && categoryReportData) {
-      content = `*CATEGORY REPORT SUMMARY FOR ${dateStr}*\n\n`;
-      const outcomes = ["TOTAL REJECTION", "RT CONVERSION", "WABI SABI", "SCRAP"];
+      // Category Report CSV
+      fileName = `CATEGORY_REPORT_SUMMARY_${dateStr}.csv`;
       
-      outcomes.forEach(outcome => {
-        content += `=== ${outcome} (${categoryReportData.kpis[outcome]}) ===\n`;
-        rejectionCategories.forEach(cat => {
-          const data = categoryReportData.breakdown[outcome][cat.key];
+      const outcomes = ["TOTAL REJECTION", "RT CONVERSION", "WABI SABI", "SCRAP"];
+      const headerRow = ["Total Rejection", "Count", "", "RT Conversion", "Count", "", "Wabi Sabi", "Count", "", "Scrap", "Count"];
+      content += headerRow.join(",") + "\n";
+
+      // Collect all rejections for each outcome into lists
+      const lists: { name: string; value: number }[][] = [[], [], [], []];
+      const categories = ["ASSEMBLY", "CASTING", "FUNCTIONAL", "SHELL", "POLISHING"];
+
+      outcomes.forEach((outcome, idx) => {
+        categories.forEach(cat => {
+          const data = categoryReportData.breakdown[outcome][cat];
           if (data && data.rejections.length > 0) {
-            content += `*${cat.title} REJECTIONS :*\n`;
-            data.rejections.forEach(item => {
-              content += `${item.name} - ${item.value}\n`;
-            });
+            lists[idx].push(...data.rejections);
           }
         });
-        content += '\n';
+        // Sort descending by count
+        lists[idx].sort((a, b) => b.value - a.value);
       });
-      fileName = `CATEGORY_REPORT_SUMMARY_${dateStr}.csv`;
+
+      // Find max length
+      const maxLen = Math.max(...lists.map(l => l.length));
+
+      for (let i = 0; i < maxLen; i++) {
+        const row = [];
+        for (let j = 0; j < outcomes.length; j++) {
+          const item = lists[j][i];
+          if (item) {
+            row.push(`"${item.name}"`, item.value);
+          } else {
+            row.push("", "");
+          }
+          if (j < outcomes.length - 1) row.push(""); // Gap column
+        }
+        content += row.join(",") + "\n";
+      }
+
     } else if (reportFilters.reportType === 'Rejection' && rejectionReportData) {
+      // Rejection Report CSV
       const dateHeaders = rejectionReportData.dates.map(d => format(new Date(d), 'dd-MMM-yy'));
-      const headers = ['Stage', 'Rejection Type', ...dateHeaders, 'Total'];
+      const headers = ['Stage', 'Rejection Type', 'Total', ...dateHeaders];
       const csvRows = [headers.join(',')];
       
       rejectionReportData.table_data.forEach(row => {
         const rowValues = [
           row.stage,
           `"${row.rejection_type}"`,
-          ...rejectionReportData.dates.map(d => row[d] || 0),
-          row.total
+          row.total,
+          ...rejectionReportData.dates.map(d => row[d] || 0)
         ];
         csvRows.push(rowValues.join(','));
       });
       content = csvRows.join('\n');
       const dateStrFile = reportFilters.dateRange.from ? format(reportFilters.dateRange.from, 'MMMM_yyyy') : 'ALL_TIME';
       fileName = `@${dateStrFile} month data.csv`;
+
     } else {
+      // Daily Report CSV (Default)
       content = `*${reportFilters.stage} REPORT FOR ${vendorStr} ${dateStr}*\n\n`;
       content += `OUTPUT - ${reportData.kpis.output}\n`;
       content += `${reportFilters.stage} ACCEPTED - ${reportData.kpis.accepted}\n`;
