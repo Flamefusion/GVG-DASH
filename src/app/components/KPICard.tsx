@@ -10,7 +10,7 @@ interface KPICardProps {
   icon: LucideIcon;
   color: string;
   onClick: () => void;
-  percentage?: number;
+  percentage?: number | string;
   percentageStyle?: 'side' | 'inline';
 }
 
@@ -31,6 +31,8 @@ const getGradient = (color: string) => {
 export const KPICard: React.FC<KPICardProps> = ({ title, value, suffix, icon: Icon, color, onClick, percentage, percentageStyle = 'inline' }) => {
   const { darkMode } = useDashboard();
 
+  const formattedPercentage = typeof percentage === 'number' ? percentage.toFixed(2) : percentage;
+
   return (
     <motion.div
       whileHover={{ scale: 1.05, y: -8 }}
@@ -50,7 +52,7 @@ export const KPICard: React.FC<KPICardProps> = ({ title, value, suffix, icon: Ic
             <p className="text-xs font-semibold uppercase tracking-wide text-black flex items-center gap-2">
               {title}
               {percentage !== undefined && percentageStyle === 'inline' && (
-                <span className="text-xs font-bold opacity-70">({Math.round(percentage)}%)</span>
+                <span className="text-xs font-bold opacity-70">({formattedPercentage}%)</span>
               )}
             </p>
             <motion.div
@@ -74,7 +76,7 @@ export const KPICard: React.FC<KPICardProps> = ({ title, value, suffix, icon: Ic
 
         {percentage !== undefined && percentageStyle === 'side' && (
           <div className="ml-4 flex items-baseline border-l border-black/10 pl-4">
-            <span className="text-4xl font-black leading-none">{Math.round(percentage)}</span>
+            <span className="text-4xl font-black leading-none">{formattedPercentage}</span>
             <span className="text-xl font-bold opacity-70 ml-0.5">%</span>
           </div>
         )}

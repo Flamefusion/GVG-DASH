@@ -107,7 +107,7 @@ const Report: React.FC = () => {
   };
 
   const totalProcessed = reportData.kpis.accepted + reportData.kpis.rejected;
-  const yieldValue = totalProcessed > 0 ? Math.round((reportData.kpis.accepted / totalProcessed) * 100) : 0;
+  const yieldValue = totalProcessed > 0 ? ((reportData.kpis.accepted / totalProcessed) * 100).toFixed(2) : 0;
 
   const isWabiSabi = reportFilters.stage === 'WABI SABI';
 
@@ -304,7 +304,7 @@ const Report: React.FC = () => {
             {rejectionCategories.map((cat, index) => {
               const items = reportData.rejections[cat.key] || [];
               const total = items.reduce((acc, item) => acc + item.value, 0);
-              const rejectionRate = totalProcessed > 0 ? Math.round((total / totalProcessed) * 100) : 0;
+              const rejectionRate = totalProcessed > 0 ? ((total / totalProcessed) * 100).toFixed(2) : 0;
               
               return (
                 <motion.div

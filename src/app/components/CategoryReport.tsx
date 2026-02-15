@@ -104,7 +104,7 @@ export const CategoryReport: React.FC = () => {
           const items = data.rejections;
           const total = data.total;
           const outcomeTotal = categoryReportData.kpis[selectedOutcome] || 1;
-          const percentage = Math.round((total / outcomeTotal) * 100);
+          const percentage = ((total / outcomeTotal) * 100).toFixed(2);
 
           return (
             <motion.div
