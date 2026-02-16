@@ -86,39 +86,37 @@ const Search: React.FC = () => {
     fetchFilterOptions();
   }, []); // Run once, not dependent on stage anymore
 
-  const buildSearchParams = (page = 1, download = false) => {
-    const params = new URLSearchParams();
-    if (!download) {
-      params.append('page', page.toString());
-      params.append('limit', '100');
-    } else {
-      params.append('download', 'true');
-    }
-    
-    if (searchFilters.serialNumbers.trim()) params.append('serial_numbers', searchFilters.serialNumbers.replace(/\n/g, ','));
-    if (searchFilters.moNumbers.trim()) params.append('mo_numbers', searchFilters.moNumbers.replace(/\n/g, ','));
-    if (searchFilters.stage && searchFilters.stage !== 'All') params.append('stage', searchFilters.stage);
-    if (searchFilters.vendor && searchFilters.vendor !== 'all') params.append('vendor', searchFilters.vendor);
-    if (searchFilters.line && searchFilters.line !== 'All') params.append('line', searchFilters.line);
-    
-    searchFilters.selectedSizes.forEach(s => params.append('size', s));
-    searchFilters.selectedSkus.forEach(s => params.append('sku', s));
-    
-    searchFilters.selectedStatuses.forEach(s => params.append('vqc_status', s));
-    searchFilters.selectedReasons.forEach(r => params.append('rejection_reasons', r));
-
-    if (searchFilters.dateRange.from) params.append('start_date', format(searchFilters.dateRange.from, 'yyyy-MM-dd'));
-    if (searchFilters.dateRange.to) params.append('end_date', format(searchFilters.dateRange.to, 'yyyy-MM-dd'));
-
-    return params;
+  const buildSearchBody = (page = 1, download = false) => {
+    return {
+      page: download ? undefined : page,
+      limit: download ? undefined : 100,
+      download: download || undefined,
+      serial_numbers: searchFilters.serialNumbers.trim() ? searchFilters.serialNumbers.replace(/\n/g, ',') : undefined,
+      mo_numbers: searchFilters.moNumbers.trim() ? searchFilters.moNumbers.replace(/\n/g, ',') : undefined,
+      stage: searchFilters.stage !== 'All' ? searchFilters.stage : 'All',
+      vendor: searchFilters.vendor !== 'all' ? searchFilters.vendor : undefined,
+      line: searchFilters.line !== 'All' ? searchFilters.line : undefined,
+      sizes: searchFilters.selectedSizes.length > 0 ? searchFilters.selectedSizes : undefined,
+      skus: searchFilters.selectedSkus.length > 0 ? searchFilters.selectedSkus : undefined,
+      vqc_status: searchFilters.selectedStatuses.length > 0 ? searchFilters.selectedStatuses : undefined,
+      rejection_reasons: searchFilters.selectedReasons.length > 0 ? searchFilters.selectedReasons : undefined,
+      start_date: searchFilters.dateRange.from ? format(searchFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
+      end_date: searchFilters.dateRange.to ? format(searchFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
+    };
   };
 
   const handleSearch = async (page = 1) => {
     setLoading(true);
 
     try {
-      const params = buildSearchParams(page);
-      const response = await fetch(`${BACKEND_URL}/search?${params.toString()}`);
+      const body = buildSearchBody(page);
+      const response = await fetch(`${BACKEND_URL}/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
       if (!response.ok) throw new Error('Search failed');
       
       const data = await response.json();
@@ -140,8 +138,14 @@ const Search: React.FC = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const params = buildSearchParams(1, true); // Page doesn't matter for download
-      const response = await fetch(`${BACKEND_URL}/search?${params.toString()}`);
+      const body = buildSearchBody(1, true);
+      const response = await fetch(`${BACKEND_URL}/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
       if (!response.ok) throw new Error('Export failed');
       
       const result = await response.json();

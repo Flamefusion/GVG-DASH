@@ -40,6 +40,22 @@ class User(BaseModel):
     email: str
     role: Optional[str] = None
 
+class SearchRequest(BaseModel):
+    page: int = 1
+    limit: int = 100
+    serial_numbers: Optional[str] = None
+    stage: str = 'All'
+    vendor: Optional[str] = None
+    vqc_status: Optional[List[str]] = None
+    rejection_reasons: Optional[List[str]] = None
+    mo_numbers: Optional[str] = None
+    sizes: Optional[List[str]] = None
+    skus: Optional[List[str]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    line: Optional[str] = None
+    download: bool = False
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Configure CORS
@@ -482,21 +498,51 @@ async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_dat
 
 
 @app.get("/search")
-async def search_data(
+async def search_data_get(
     page: int = 1,
     limit: int = 100,
-    serial_numbers: Optional[str] = Query(None, description="Comma-separated serial numbers"),
-    stage: str = Query('All', description="Stage: VQC, FT, CS, All"),
+    serial_numbers: Optional[str] = Query(None),
+    stage: str = Query('All'),
     vendor: Optional[str] = None,
     vqc_status: Optional[List[str]] = Query(None),
     rejection_reasons: Optional[List[str]] = Query(None),
-    mo_numbers: Optional[str] = Query(None, description="Comma-separated MO numbers"),
+    mo_numbers: Optional[str] = Query(None),
     sizes: Optional[List[str]] = Query(None, alias="size"),
     skus: Optional[List[str]] = Query(None, alias="sku"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     line: Optional[str] = None,
     download: bool = False,
+):
+    return await execute_search(
+        page, limit, serial_numbers, stage, vendor, vqc_status, 
+        rejection_reasons, mo_numbers, sizes, skus, start_date, end_date, line, download
+    )
+
+@app.post("/search")
+async def search_data_post(request: SearchRequest):
+    return await execute_search(
+        request.page, request.limit, request.serial_numbers, request.stage, 
+        request.vendor, request.vqc_status, request.rejection_reasons, 
+        request.mo_numbers, request.sizes, request.skus, request.start_date, 
+        request.end_date, request.line, request.download
+    )
+
+async def execute_search(
+    page: int,
+    limit: int,
+    serial_numbers: Optional[str],
+    stage: str,
+    vendor: Optional[str],
+    vqc_status: Optional[List[str]],
+    rejection_reasons: Optional[List[str]],
+    mo_numbers: Optional[str],
+    sizes: Optional[List[str]],
+    skus: Optional[List[str]],
+    start_date: Optional[date],
+    end_date: Optional[date],
+    line: Optional[str],
+    download: bool,
 ):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
