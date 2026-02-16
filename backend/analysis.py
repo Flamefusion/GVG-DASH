@@ -559,9 +559,10 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
     
     # Initialize categories for each outcome
     categories = ["ASSEMBLY", "CASTING", "FUNCTIONAL", "SHELL", "POLISHING"]
-    for outcome in breakdown:
-        for cat in categories:
-            breakdown[outcome][cat] = {"total": 0, "rejections": []}
+    
+    # Use a nested dict for temporary aggregation to avoid duplicates
+    # Structure: agg[outcome][category][reason] = count
+    agg = {outcome: {cat: {} for cat in categories} for outcome in breakdown}
 
     for row in rows:
         status = (row['status'] or "").upper()
@@ -573,8 +574,12 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
 
         # Add to Total
         kpis["TOTAL REJECTION"] += count
-        breakdown["TOTAL REJECTION"][cat]["total"] += count
-        breakdown["TOTAL REJECTION"][cat]["rejections"].append({"name": reason, "value": count})
+        
+        # Aggregate for TOTAL REJECTION
+        if reason in agg["TOTAL REJECTION"][cat]:
+            agg["TOTAL REJECTION"][cat][reason] += count
+        else:
+            agg["TOTAL REJECTION"][cat][reason] = count
         
         # Add to specific outcome
         outcome_key = None
@@ -587,8 +592,28 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
             
         if outcome_key:
             kpis[outcome_key] += count
-            breakdown[outcome_key][cat]["total"] += count
-            breakdown[outcome_key][cat]["rejections"].append({"name": reason, "value": count})
+            # Aggregate for specific outcome
+            if reason in agg[outcome_key][cat]:
+                agg[outcome_key][cat][reason] += count
+            else:
+                agg[outcome_key][cat][reason] = count
+
+    # Finalize the breakdown structure
+    for outcome in breakdown:
+        for cat in categories:
+            # Convert aggregated dict to sorted list of objects
+            rejections_list = [
+                {"name": name, "value": int(count)} 
+                for name, count in agg[outcome][cat].items()
+            ]
+            # Sort by value descending
+            rejections_list.sort(key=lambda x: x["value"], reverse=True)
+            
+            total_count = sum(item["value"] for item in rejections_list)
+            breakdown[outcome][cat] = {
+                "total": total_count,
+                "rejections": rejections_list
+            }
 
     return {
         "kpis": kpis,
