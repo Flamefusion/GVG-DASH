@@ -24,35 +24,36 @@ export const CategoryReport: React.FC = () => {
 
   if (!categoryReportData) return <div className="text-center py-10">No data available</div>;
 
-  const totalRejection = categoryReportData.kpis["TOTAL REJECTION"] || 1;
+  const totalInward = categoryReportData.kpis["total_inward"] || 0;
 
   const topKpis = [
     { 
       title: 'TOTAL REJECTION', 
       key: 'TOTAL REJECTION', 
       icon: AlertCircle, 
-      color: '#ef4444' // Red
+      color: '#ef4444', // Red
+      percentage: totalInward > 0 ? ((categoryReportData.kpis['TOTAL REJECTION'] || 0) / totalInward) * 100 : 0
     },
     { 
       title: 'RT CONVERSION', 
       key: 'RT CONVERSION', 
       icon: RefreshCw, 
       color: '#f59e0b', // Yellow/Amber
-      percentage: ((categoryReportData.kpis['RT CONVERSION'] || 0) / totalRejection) * 100
+      percentage: totalInward > 0 ? ((categoryReportData.kpis['RT CONVERSION'] || 0) / totalInward) * 100 : 0
     },
     { 
       title: 'WABI SABI', 
       key: 'WABI SABI', 
       icon: Gem, 
       color: '#fb923c', // Orange (Tailwind orange-400 equivalent for a vibrant look)
-      percentage: ((categoryReportData.kpis['WABI SABI'] || 0) / totalRejection) * 100
+      percentage: totalInward > 0 ? ((categoryReportData.kpis['WABI SABI'] || 0) / totalInward) * 100 : 0
     },
     { 
       title: 'SCRAP', 
       key: 'SCRAP', 
       icon: Trash2, 
       color: '#ef4444', // Red
-      percentage: ((categoryReportData.kpis['SCRAP'] || 0) / totalRejection) * 100
+      percentage: totalInward > 0 ? ((categoryReportData.kpis['SCRAP'] || 0) / totalInward) * 100 : 0
     },
   ];
 

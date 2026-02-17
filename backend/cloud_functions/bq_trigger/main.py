@@ -9,7 +9,7 @@ MASTER_TABLE = "master_station_data"
 
 client = bigquery.Client()
 
-def bq_trigger_handler(event, context):
+def bq_trigger_handler(event, context=None):
     """
     Triggered by a Pub/Sub message from a Cloud Logging sink.
     Expects BigQuery Audit Logs for 'google.cloud.bigquery.v2.JobService.InsertJob'

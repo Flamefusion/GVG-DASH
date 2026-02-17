@@ -82,6 +82,7 @@ export interface CategoryReportData {
     "RT CONVERSION": number;
     "WABI SABI": number;
     "SCRAP": number;
+    "total_inward": number;
   };
   breakdown: {
     [outcome: string]: {

@@ -541,11 +541,36 @@ def get_category_report_data(client: bigquery.Client, rejection_analysis_table: 
     # Outcome mapping
     # RT CONVERSION, WABI SABI, SCRAP
     
+    # Fetch total_inward from dash_overview for percentage calculation
+    parts = rejection_analysis_table.replace('`', '').split('.')
+    overview_base = 'dash_overview' if 'test' in rejection_analysis_table else 'dash_overview'
+    if len(parts) >= 2:
+        overview_table = f"`{'.'.join(parts[:-1])}.{overview_base}`"
+    else:
+        overview_table = f"`production-dashboard-482014.dashboard_data.{overview_base}`"
+
+    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, 'VQC', vendor)
+    
+    total_inward_for_pct = 0
+    try:
+        inward_job_config = QueryJobConfig(query_parameters=overview_params)
+        # Using Accepted + Rejected for the denominator to match Yield logic
+        inward_query = f"SELECT SUM(qc_accepted) as accepted, SUM(vqc_rejection) as rejected FROM {overview_table} {overview_where}"
+        inward_job = client.query(inward_query, job_config=inward_job_config)
+        inward_res = list(inward_job.result())
+        if inward_res:
+            acc = inward_res[0]['accepted'] or 0
+            rej = inward_res[0]['rejected'] or 0
+            total_inward_for_pct = int(acc + rej)
+    except Exception as e:
+        print(f"Inward Query Error in Category Report: {e}")
+
     kpis = {
         "TOTAL REJECTION": 0,
         "RT CONVERSION": 0,
         "WABI SABI": 0,
-        "SCRAP": 0
+        "SCRAP": 0,
+        "total_inward": total_inward_for_pct
     }
     
     # Structure: breakdown[outcome][category] = { total: X, rejections: [] }
