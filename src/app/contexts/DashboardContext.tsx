@@ -302,24 +302,15 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
     const queryString = params.toString();
 
     try {
-      const [kpiResponse, chartResponse, analysisResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/kpis?${queryString}`),
-        fetch(`${BACKEND_URL}/charts?${queryString}`),
-        fetch(`${BACKEND_URL}/analysis?${queryString}`),
-      ]);
+      const response = await fetch(`${BACKEND_URL}/home-summary?${queryString}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for Home Summary`);
 
-      if (!kpiResponse.ok) throw new Error(`HTTP error! status: ${kpiResponse.status} for KPIs`);
-      if (!chartResponse.ok) throw new Error(`HTTP error! status: ${chartResponse.status} for Charts`);
-      if (!analysisResponse.ok) throw new Error(`HTTP error! status: ${analysisResponse.status} for Analysis`);
+      const data = await response.json();
 
-      const kpiData = await kpiResponse.json();
-      const chartData = await chartResponse.json();
-      const analysisData = await analysisResponse.json();
-
-      setKpis(kpiData);
-      setVqcWipChart(chartData.vqc_wip_sku_wise);
-      setFtWipChart(chartData.ft_wip_sku_wise);
-      setAnalysisData(analysisData);
+      setKpis(data.kpis);
+      setVqcWipChart(data.charts.vqc_wip_sku_wise);
+      setFtWipChart(data.charts.ft_wip_sku_wise);
+      setAnalysisData(data.analysis);
     } catch (err) {
       console.error("Failed to fetch dashboard data from URL:", BACKEND_URL, err);
       setError(`Failed to load data: ${err instanceof Error ? err.message : String(err)}`);

@@ -1,4 +1,6 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.wip_sku_wise` AS
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.wip_sku_wise`
+CLUSTER BY event_date, line, vendor, sku
+AS
 SELECT
     vqc_inward_date AS event_date,
     line,

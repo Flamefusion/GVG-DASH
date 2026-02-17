@@ -1,4 +1,6 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview` AS
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview`
+    CLUSTER BY event_date, line, vendor, sku
+    AS
     WITH single_scan_funnel AS (
         -- Single scan of the master table
         SELECT
