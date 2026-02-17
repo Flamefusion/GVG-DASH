@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface User {
   email: string;
+  init: string | null;
 }
 
 interface AuthContextType {
@@ -23,7 +24,10 @@ const decodeToken = (token: string): User | null => {
     }).join(''));
 
     const payload = JSON.parse(jsonPayload);
-    return { email: payload.sub || payload.username || payload.email };
+    return { 
+      email: payload.sub || payload.username || payload.email,
+      init: payload.init || null
+    };
   } catch (e) {
     return null;
   }

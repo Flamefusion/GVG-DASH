@@ -23,9 +23,25 @@ import {
 } from '@/app/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 
+const getUserColor = (init: string | null) => {
+  if (!init) return 'bg-blue-500';
+  const colors = [
+    'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500', 
+    'bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-pink-500'
+  ];
+  let hash = 0;
+  for (let i = 0; i < init.length; i++) {
+    hash = init.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export const Nav: React.FC = () => {
   const { darkMode, toggleDarkMode, isFullScreen, toggleFullScreen } = useDashboard();
   const { user, logout } = useAuth();
+
+  const userInitials = user?.init || (user?.email ? user.email.charAt(0).toUpperCase() : 'U');
+  const avatarBg = getUserColor(userInitials);
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 border ${
@@ -134,8 +150,8 @@ export const Nav: React.FC = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarFallback className={darkMode ? 'bg-indigo-600 text-white' : 'bg-blue-500 text-white'}>
-                  <User size={18} />
+                <AvatarFallback className={`${avatarBg} text-white font-bold text-xs`}>
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
             </Button>

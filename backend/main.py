@@ -48,6 +48,7 @@ class UserLogin(BaseModel):
 class User(BaseModel):
     email: str
     role: Optional[str] = None
+    init: Optional[str] = None
 
 class SearchRequest(BaseModel):
     page: int = 1
@@ -146,7 +147,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user_row['email'], "role": user_row['role']}, expires_delta=access_token_expires
+            data={"sub": user_row['email'], "role": user_row['role'], "init": user_row.get('init')}, expires_delta=access_token_expires
         )
         return {"access_token": access_token, "token_type": "bearer"}
         
