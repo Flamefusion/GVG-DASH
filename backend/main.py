@@ -401,7 +401,16 @@ async def get_vendors():
 async def get_last_updated():
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
-    query = f"SELECT MAX(last_updated_at) as last_updated FROM {TABLE}"
+    
+    # Updated to use etl_metadata table for more accurate sync tracking
+    metadata_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.etl_metadata`"
+    query = f"""
+        SELECT last_sync_attempt as last_updated 
+        FROM {metadata_table} 
+        WHERE status = 'SUCCESS' 
+        ORDER BY last_sync_attempt DESC 
+        LIMIT 1
+    """
     try:
         job_config = QueryJobConfig(query_parameters=[])
         query_job = client.query(query, job_config=job_config)
@@ -409,7 +418,16 @@ async def get_last_updated():
         last_updated = results[0]['last_updated'] if results and results[0]['last_updated'] else None
         return {"last_updated_at": last_updated}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for last updated time: {e}")
+        # Fallback to MAX(last_updated_at) from main table if metadata table query fails
+        print(f"Error querying etl_metadata: {e}. Falling back to master table.")
+        fallback_query = f"SELECT MAX(last_updated_at) as last_updated FROM {TABLE}"
+        try:
+            fallback_job = client.query(fallback_query)
+            fallback_res = list(fallback_job.result())
+            last_updated = fallback_res[0]['last_updated'] if fallback_res and fallback_res[0]['last_updated'] else None
+            return {"last_updated_at": last_updated}
+        except Exception as fallback_e:
+            raise HTTPException(status_code=500, detail=f"Error querying BigQuery for last updated time: {fallback_e}")
 
 
 @app.get("/kpi-data/{kpi_name}")
