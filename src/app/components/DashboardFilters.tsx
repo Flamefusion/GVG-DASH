@@ -184,7 +184,7 @@ export const DashboardFilters: React.FC = () => {
         value={filters.line}
         onValueChange={handleLineChange}
       >
-        <SelectTrigger className="w-28 h-8 text-xs">
+        <SelectTrigger className="w-32 h-8 text-xs">
           <SelectValue placeholder="Line" />
         </SelectTrigger>
         <SelectContent>

@@ -196,7 +196,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:80
 const getMonthDateRange = () => {
   const today = new Date();
   const from = new Date(today.getFullYear(), today.getMonth(), 1);
-  const to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3);
   
   return { from, to };
 };
