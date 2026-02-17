@@ -5,7 +5,7 @@ from google.cloud import bigquery
 PROJECT_ID = "production-dashboard-482014"
 client = bigquery.Client()
 
-def bq_trigger_handler(event, context):
+def bq_trigger_handler(event, context=None):
     """
     Triggered by a Pub/Sub message from a Custom Log Sink.
     """
