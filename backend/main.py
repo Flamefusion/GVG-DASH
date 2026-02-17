@@ -315,12 +315,12 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     ORDER BY sku ASC
     """
 
-    # FT WIP Query
-    ft_where, ft_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, stage='FT')
+    # FT + CS WIP Query (Everything beyond VQC)
+    ft_where, ft_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
     ft_wip_query = f"""
     SELECT sku, SUM(wip_count) as count
     FROM {wip_table}
-    {ft_where}
+    {ft_where + " AND " if ft_where else "WHERE "} stage IN ('FT', 'CS')
     GROUP BY sku
     ORDER BY sku ASC
     """

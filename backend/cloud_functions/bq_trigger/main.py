@@ -125,8 +125,9 @@ def update_wip_sku_wise():
         vqc_inward_date AS event_date,
         line,
         CASE 
-            WHEN ft_inward_date IS NULL THEN 'VQC'
-            ELSE 'FT'
+            WHEN cs_comp_date IS NOT NULL THEN 'CS'
+            WHEN ft_inward_date IS NOT NULL THEN 'FT'
+            ELSE 'VQC'
         END AS stage,
         sku,
         size,
