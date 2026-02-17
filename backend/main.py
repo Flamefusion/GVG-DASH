@@ -325,12 +325,19 @@ async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[d
     ORDER BY sku ASC
     """
 
-    try:
-        vqc_job = client.query(vqc_wip_query, job_config=QueryJobConfig(query_parameters=vqc_params))
-        vqc_wip_results = [dict(row) for row in vqc_job.result()]
+    import concurrent.futures
 
-        ft_job = client.query(ft_wip_query, job_config=QueryJobConfig(query_parameters=ft_params))
-        ft_wip_results = [dict(row) for row in ft_job.result()]
+    def execute_bq(query, params):
+        job = client.query(query, job_config=QueryJobConfig(query_parameters=params))
+        return [dict(row) for row in job.result()]
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            vqc_future = executor.submit(execute_bq, vqc_wip_query, vqc_params)
+            ft_future = executor.submit(execute_bq, ft_wip_query, ft_params)
+            
+            vqc_wip_results = vqc_future.result()
+            ft_wip_results = ft_future.result()
 
         return {
             "vqc_wip_sku_wise": vqc_wip_results,

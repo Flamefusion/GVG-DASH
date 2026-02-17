@@ -228,7 +228,9 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
     LIMIT 10
     """
 
-    def execute_query(query, params=None):
+    import concurrent.futures
+
+    def execute_query_parallel(query, params=None):
         if params is None:
             params = []
         job_config = QueryJobConfig(query_parameters=params)
@@ -239,21 +241,34 @@ def get_analysis_data(client: bigquery.Client, table: str, start_date: Optional[
             print(f"Error executing query: {e}")
             return []
 
-    # KPIs and Trends use overview_params (no sku/size)
-    kpis_result = execute_query(kpi_query, overview_params)
-    
-    return {
-        "kpis": kpis_result[0] if kpis_result else {},
-        "acceptedVsRejected": execute_query(accepted_vs_rejected_query, overview_params),
-        "rejectionBreakdown": execute_query(rejection_breakdown_query, overview_params),
-        "rejectionTrend": execute_query(rejection_trend_query, overview_params),
-        # Detailed charts use query_parameters (with sku/size)
-        "topVqcRejections": execute_query(top_vqc_rejections_query, query_parameters),
-        "topFtRejections": execute_query(top_ft_rejections_query, query_parameters),
-        "topCsRejections": execute_query(top_cs_rejections_query, query_parameters),
-        "deTechVendorRejections": execute_query(de_tech_vendor_rejections_query, query_parameters),
-        "ihcVendorRejections": execute_query(ihc_vendor_rejections_query, query_parameters),
-    }
+    queries = [
+        (kpi_query, overview_params, "kpis"),
+        (accepted_vs_rejected_query, overview_params, "acceptedVsRejected"),
+        (rejection_breakdown_query, overview_params, "rejectionBreakdown"),
+        (rejection_trend_query, overview_params, "rejectionTrend"),
+        (top_vqc_rejections_query, query_parameters, "topVqcRejections"),
+        (top_ft_rejections_query, query_parameters, "topFtRejections"),
+        (top_cs_rejections_query, query_parameters, "topCsRejections"),
+        (de_tech_vendor_rejections_query, query_parameters, "deTechVendorRejections"),
+        (ihc_vendor_rejections_query, query_parameters, "ihcVendorRejections"),
+    ]
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(queries)) as executor:
+        future_to_key = {executor.submit(execute_query_parallel, q, p): k for q, p, k in queries}
+        for future in concurrent.futures.as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                data = future.result()
+                if key == "kpis":
+                    results[key] = data[0] if data else {}
+                else:
+                    results[key] = data
+            except Exception as e:
+                print(f"Query {key} generated an exception: {e}")
+                results[key] = {} if key == "kpis" else []
+
+    return results
 
 def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
     
