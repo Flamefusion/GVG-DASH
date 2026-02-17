@@ -225,7 +225,7 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({ onApply }) => {
       </Popover>
 
       <Select value={localFilters.line} onValueChange={handleLineChange}>
-        <SelectTrigger className="w-28 h-8 text-xs">
+        <SelectTrigger className="w-32 h-8 text-xs">
           <SelectValue placeholder="Line" />
         </SelectTrigger>
         <SelectContent>
