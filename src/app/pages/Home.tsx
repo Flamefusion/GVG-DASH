@@ -21,7 +21,7 @@ export const Home: React.FC = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [selectedKpi, setSelectedKpi] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
-  const { kpis, loading, error, darkMode, filters } = useDashboard();
+  const { kpis, comparisonKpis, loading, error, darkMode, filters } = useDashboard();
 
   useEffect(() => {
     const fetchLastUpdated = async () => {
@@ -79,6 +79,7 @@ export const Home: React.FC = () => {
       title: 'TOTAL INWARD',
       kpiKey: 'total_inward',
       value: kpis.total_inward,
+      comparisonValue: comparisonKpis?.total_inward,
       icon: Package,
       color: '#3b82f6',
       show: true,
@@ -87,6 +88,7 @@ export const Home: React.FC = () => {
       title: 'QC ACCEPTED',
       kpiKey: 'qc_accepted',
       value: kpis.qc_accepted,
+      comparisonValue: comparisonKpis?.qc_accepted,
       icon: CheckCircle,
       color: '#10b981', // Green
       show: !isWabiSabi,
@@ -95,6 +97,7 @@ export const Home: React.FC = () => {
       title: 'TESTING ACCEPTED',
       kpiKey: 'testing_accepted',
       value: kpis.testing_accepted,
+      comparisonValue: comparisonKpis?.testing_accepted,
       icon: FlaskConical,
       color: '#8b5cf6',
       show: true,
@@ -103,6 +106,7 @@ export const Home: React.FC = () => {
       title: 'TOTAL REJECTED',
       kpiKey: 'total_rejected',
       value: kpis.total_rejected,
+      comparisonValue: comparisonKpis?.total_rejected,
       icon: XCircle,
       color: '#ef4444', // Red
       show: true,
@@ -111,6 +115,7 @@ export const Home: React.FC = () => {
       title: 'MOVED TO INVENTORY',
       kpiKey: 'moved_to_inventory',
       value: kpis.moved_to_inventory,
+      comparisonValue: comparisonKpis?.moved_to_inventory,
       icon: Archive,
       color: '#f59e0b',
       show: true,
@@ -119,6 +124,7 @@ export const Home: React.FC = () => {
       title: 'WORK IN PROGRESS',
       kpiKey: 'work_in_progress',
       value: kpis.work_in_progress,
+      comparisonValue: comparisonKpis?.work_in_progress,
       icon: Clock,
       color: '#06b6d4',
       show: true,
@@ -169,6 +175,7 @@ export const Home: React.FC = () => {
           <KPICard
               title={card.title}
               value={card.value}
+              comparisonValue={card.comparisonValue}
               icon={card.icon}
               color={card.color}
               onClick={() => handleKPIClick(card.title, card.kpiKey)}

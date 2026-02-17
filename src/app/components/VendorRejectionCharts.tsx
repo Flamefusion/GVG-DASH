@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from 'recharts';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useDashboard } from '@/app/contexts/DashboardContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
+import { downloadChartAsImage } from '@/app/components/ui/utils';
 
 interface ChartData {
   name: string;
@@ -18,11 +19,12 @@ interface VendorRejectionChartsProps {
 
 type ChartView = 'deTech' | 'ihc' | 'combined';
 
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f', '#ffbb28', '#ff8042', '#ff7300', '#34a853', '#d93025'];
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f', '#ffbb28', '#ff7300', '#34a853', '#d93025'];
 
 export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ deTechData, ihcData }) => {
   const [chartView, setChartView] = useState<ChartView>('deTech');
   const [isExpanded, setIsExpanded] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
   const { darkMode, filters } = useDashboard();
 
   const isRT = filters.stage === 'RT' || filters.stage === 'RT CS';
@@ -50,6 +52,13 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
       if (prevView === 'ihc') return 'combined';
       return 'deTech';
     });
+  };
+
+  const handleDownload = () => {
+    if (chartRef.current) {
+      const svg = chartRef.current.querySelector('svg');
+      downloadChartAsImage(svg, `${currentTitle.replace(/\s+/g, '_').toLowerCase()}_${new Date().getTime()}`);
+    }
   };
 
   const { currentData, currentTitle, nextView } = useMemo(() => {
@@ -81,6 +90,34 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
   
   const total = currentData.reduce((acc, curr) => acc + curr.value, 0);
 
+  const HighlightingBar = (props: any) => {
+    const { fill, x, y, width, height, value, expanded } = props;
+    const percentage = total > 0 ? (value / total) * 100 : 0;
+    const isWarning = !expanded && percentage > 10;
+
+    return (
+      <g>
+        {isWarning ? (
+          <motion.rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fill={fill}
+            rx={8}
+            ry={8}
+            stroke="#ef4444"
+            strokeWidth={3}
+            animate={{ strokeOpacity: [1, 0.2, 1], shadowBlur: [0, 10, 0] }}
+            transition={{ repeat: Infinity, duration: 1 }}
+          />
+        ) : (
+          <rect x={x} y={y} width={width} height={height} fill={fill} rx={8} ry={8} />
+        )}
+      </g>
+    );
+  };
+
   const PercentageLabel = (props: any) => {
     const { x, y, width, height, value } = props;
     if (value === 0) return null;
@@ -106,45 +143,46 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
   };
 
   const renderChartContent = (expanded = false) => (
-    <ResponsiveContainer width="100%" height={expanded ? "100%" : 350}>
-      <BarChart data={currentData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="0" stroke="transparent" />
-        <XAxis
-          dataKey="name"
-          stroke={darkMode ? '#a3a3a3' : '#737373'}
-          angle={-45}
-          textAnchor="end"
-          height={100}
-          interval={0}
-          style={{ fontSize: expanded ? '12px' : '10px' }}
-        />
-        <YAxis
-          stroke={darkMode ? '#a3a3a3' : '#737373'}
-          style={{ fontSize: '12px' }}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: darkMode ? '#0a0a0a' : '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            color: darkMode ? '#fff' : '#000',
-          }}
-          itemStyle={{ color: darkMode ? '#fff' : '#000' }}
-          cursor={{ fill: 'transparent' }}
-        />
-        <Bar
-          dataKey="value"
-          radius={[8, 8, 0, 0]}
-        >
-          {currentData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-          <LabelList content={<ValueLabel />} position="top" />
-          <LabelList content={<PercentageLabel />} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div ref={expanded ? chartRef : null} className="w-full h-full">
+      <ResponsiveContainer width="100%" height={expanded ? "100%" : 350}>
+        <BarChart data={currentData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="0" stroke="transparent" />
+          <XAxis
+            dataKey="name"
+            stroke={darkMode ? '#a3a3a3' : '#737373'}
+            angle={-45}
+            textAnchor="end"
+            height={100}
+            interval={0}
+            style={{ fontSize: expanded ? '12px' : '10px' }}
+          />
+          <YAxis
+            stroke={darkMode ? '#a3a3a3' : '#737373'}
+            style={{ fontSize: '12px' }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              color: darkMode ? '#fff' : '#000',
+            }}
+            itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+            cursor={{ fill: 'transparent' }}
+          />
+                  <Bar
+                    dataKey="value"
+                    shape={<HighlightingBar expanded={expanded} />}
+                  >
+                    {currentData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                    <LabelList content={<ValueLabel />} position="top" />
+                    <LabelList content={<PercentageLabel />} />
+                  </Bar>        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 
   return (
@@ -188,20 +226,25 @@ export const VendorRejectionCharts: React.FC<VendorRejectionChartsProps> = ({ de
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
         <DialogContent className={`max-w-[95vw] w-[95vw] h-[90vh] max-h-[90vh] flex flex-col p-8 ${darkMode ? 'bg-neutral-950 border-white/10' : 'bg-white'}`}>
           <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{currentTitle} (Expanded View)</DialogTitle>
-            <Button
-              onClick={toggleChart}
-              variant="outline"
-              className="flex items-center gap-2 mr-10"
-              style={{
-                background: 'linear-gradient(135deg, #8884d8 0%, #82ca9d 100%)',
-                color: 'white',
-                border: 'none',
-              }}
-            >
-              <ChevronLeft size={16} />
-              Toggle to {nextView}
-              <ChevronRight size={16} />
+            <div className="flex items-center gap-4">
+              <DialogTitle className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{currentTitle}</DialogTitle>
+              <Button
+                onClick={toggleChart}
+                variant="outline"
+                className="flex items-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #8884d8 0%, #82ca9d 100%)',
+                  color: 'white',
+                  border: 'none',
+                }}
+              >
+                <ChevronLeft size={16} />
+                Toggle to {nextView}
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+            <Button onClick={handleDownload} variant="outline" className="mr-10 flex items-center gap-2">
+              <Download size={16} /> Download PNG
             </Button>
           </DialogHeader>
           <div className="flex-1 w-full mt-6 min-h-0">

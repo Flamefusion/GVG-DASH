@@ -18,7 +18,7 @@ import { VendorRejectionCharts } from '@/app/components/VendorRejectionCharts';
 import { Skeleton } from '@/app/components/ui/skeleton';
 
 const Analysis: React.FC = () => {
-  const { darkMode, analysisData, loading, error, filters } = useDashboard();
+  const { darkMode, analysisData, comparisonAnalysisKpis, loading, error, filters } = useDashboard();
 
   if (loading) {
     return (
@@ -41,42 +41,48 @@ const Analysis: React.FC = () => {
   const kpiCards = [
     {
       title: 'TOTAL REJECTION',
-      value: (analysisData.kpis.total_rejected ?? 0).toLocaleString(),
+      value: analysisData.kpis.total_rejected ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.total_rejected,
       icon: XCircle,
       color: '#ef4444',
       show: true,
     },
     {
       title: '3DE TECH REJECTION',
-      value: (analysisData.kpis.de_tech_rejection ?? 0).toLocaleString(),
+      value: analysisData.kpis.de_tech_rejection ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.de_tech_rejection,
       icon: Package,
       color: '#f59e0b',
       show: !isRT && !isWabiSabi,
     },
     {
       title: 'IHC REJECTION',
-      value: (analysisData.kpis.ihc_rejection ?? 0).toLocaleString(),
+      value: analysisData.kpis.ihc_rejection ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.ihc_rejection,
       icon: FlaskConical,
       color: '#8b5cf6',
       show: !isRT && !isWabiSabi,
     },
     {
       title: 'VQC REJECTION',
-      value: (analysisData.kpis.vqc_rejection ?? 0).toLocaleString(),
+      value: analysisData.kpis.vqc_rejection ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.vqc_rejection,
       icon: CheckCircle,
       color: '#10b981',
       show: true,
     },
     {
       title: 'FT REJECTION',
-      value: (analysisData.kpis.ft_rejection ?? 0).toLocaleString(),
+      value: analysisData.kpis.ft_rejection ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.ft_rejection,
       icon: Clock,
       color: '#06b6d4',
       show: true,
     },
     {
       title: 'CS REJECTION',
-      value: (analysisData.kpis.cs_rejection ?? 0).toLocaleString(),
+      value: analysisData.kpis.cs_rejection ?? 0,
+      comparisonValue: comparisonAnalysisKpis?.cs_rejection,
       icon: Archive,
       color: '#3b82f6',
       show: true,
@@ -113,6 +119,7 @@ const Analysis: React.FC = () => {
             <KPICard
               title={card.title}
               value={card.value}
+              comparisonValue={card.comparisonValue}
               icon={card.icon}
               color={card.color}
               onClick={() => {}}

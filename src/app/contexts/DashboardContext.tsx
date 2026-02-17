@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 export interface DashboardFilters {
   dateRange: { from: Date | null; to: Date | null };
@@ -48,6 +49,11 @@ export interface RejectionDetail {
 
 export interface ReportData {
   kpis: {
+    output: number;
+    accepted: number;
+    rejected: number;
+  };
+  comparison_kpis?: {
     output: number;
     accepted: number;
     rejected: number;
@@ -163,6 +169,8 @@ interface DashboardContextType {
   isFullScreen: boolean;
   toggleFullScreen: () => void;
   kpis: KPI | null;
+  comparisonKpis: KPI | null;
+  comparisonAnalysisKpis: any | null;
   vqcWipChart: ChartData[];
   ftWipChart: ChartData[];
   analysisData: AnalysisData | null;
@@ -194,18 +202,50 @@ const getMonthDateRange = () => {
 };
 
 export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('dark_mode');
     return saved === 'true';
   });
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [filters, setFilters] = useState<DashboardFilters>({
-    dateRange: getMonthDateRange(),
-    selectedSizes: [],
-    selectedSkus: [],
-    stage: 'VQC',
-    line: 'PRODUCTION',
-  });
+
+  const getInitialFilters = (): DashboardFilters => {
+    const defaultRange = getMonthDateRange();
+    
+    const startStr = searchParams.get('start_date');
+    const endStr = searchParams.get('end_date');
+    const skus = searchParams.getAll('sku');
+    const sizes = searchParams.getAll('size');
+    const line = searchParams.get('line');
+    const stage = searchParams.get('stage');
+
+    return {
+      dateRange: {
+        from: startStr ? new Date(startStr) : defaultRange.from,
+        to: endStr ? new Date(endStr) : defaultRange.to,
+      },
+      selectedSizes: sizes.length > 0 ? sizes : [],
+      selectedSkus: skus.length > 0 ? skus : [],
+      stage: stage || 'VQC',
+      line: line || 'PRODUCTION',
+    };
+  };
+
+  const [filters, setFilters] = useState<DashboardFilters>(getInitialFilters);
+
+  // Sync state to URL
+  useEffect(() => {
+    const newParams = new URLSearchParams();
+    if (filters.dateRange.from) newParams.set('start_date', formatDate(filters.dateRange.from));
+    if (filters.dateRange.to) newParams.set('end_date', formatDate(filters.dateRange.to));
+    filters.selectedSkus.forEach(sku => newParams.append('sku', sku));
+    filters.selectedSizes.forEach(size => newParams.append('size', size));
+    newParams.set('line', filters.line);
+    newParams.set('stage', filters.stage);
+    
+    setSearchParams(newParams, { replace: true });
+  }, [filters, setSearchParams]);
   const [reportFilters, setReportFilters] = useState<ReportFilters>({
     dateRange: getMonthDateRange(),
     vendor: 'all',
@@ -236,6 +276,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
   });
 
   const [kpis, setKpis] = useState<KPI | null>(null);
+  const [comparisonKpis, setComparisonKpis] = useState<KPI | null>(null);
+  const [comparisonAnalysisKpis, setComparisonAnalysisKpis] = useState<any | null>(null);
   const [vqcWipChart, setVqcWipChart] = useState<ChartData[]>([]);
   const [ftWipChart, setFtWipChart] = useState<ChartData[]>([]);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
@@ -308,6 +350,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
       const data = await response.json();
 
       setKpis(data.kpis);
+      setComparisonKpis(data.comparison_kpis);
+      setComparisonAnalysisKpis(data.comparison_analysis_kpis);
       setVqcWipChart(data.charts.vqc_wip_sku_wise);
       setFtWipChart(data.charts.ft_wip_sku_wise);
       setAnalysisData(data.analysis);
@@ -406,6 +450,8 @@ export const DashboardProvider: React.FC<{ children: ReactNode }> = ({ children 
         isFullScreen,
         toggleFullScreen,
         kpis,
+        comparisonKpis,
+        comparisonAnalysisKpis,
         vqcWipChart,
         ftWipChart,
         analysisData,
