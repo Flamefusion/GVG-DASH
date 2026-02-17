@@ -9,7 +9,16 @@ from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, timedelta
-from analysis import get_analysis_data, build_where_clause, get_report_data, get_rejection_report_data, get_category_report_data, get_forecast_data
+from analysis import (
+    fetch_analysis_data, 
+    build_where_clause, 
+    get_report_data, 
+    get_rejection_report_data, 
+    get_category_report_data, 
+    get_forecast_data,
+    fetch_kpi_data,
+    fetch_wip_charts_data
+)
 from auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 # Load environment variables from .env file
@@ -235,116 +244,61 @@ async def get_category_report(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting category report data: {e}")
 
+@app.get("/home-summary")
+async def get_home_summary(
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None, 
+    sizes: Optional[List[str]] = Query(None, alias="size"), 
+    skus: Optional[List[str]] = Query(None, alias="sku"), 
+    date_column: str = 'vqc_inward_date', 
+    stage: Optional[str] = None, 
+    line: Optional[str] = None, 
+    vendor: str = Query('all', description="Vendor name")
+):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+
+    import concurrent.futures
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            kpi_future = executor.submit(
+                fetch_kpi_data, client, start_date, end_date, sizes, skus, line, stage, vendor, 
+                settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID
+            )
+            chart_future = executor.submit(
+                fetch_wip_charts_data, client, start_date, end_date, sizes, skus, line, 
+                settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID
+            )
+            analysis_future = executor.submit(
+                fetch_analysis_data, client, TABLE, start_date, end_date, sizes, skus, 
+                date_column, 'sku', 'size', line, stage, vendor
+            )
+            
+            # Explicitly wait for and extract results to ensure they are serializable dicts
+            kpi_results = kpi_future.result()
+            chart_results = chart_future.result()
+            analysis_results = analysis_future.result()
+            
+            return {
+                "kpis": kpi_results,
+                "charts": chart_results,
+                "analysis": analysis_results
+            }
+    except Exception as e:
+        print(f"Home Summary Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generating home summary: {str(e)}")
+
 @app.get("/kpis")
 async def get_kpis(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None, vendor: str = Query('all', description="Vendor name")):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
-
-    # Use dash_overview for aggregated KPIs.
-    # Note: dash_overview does not have SKU/Size columns.
-    # If filters include SKU/Size, this view returns global data (ignoring SKU/Size filters) or we must fallback to master_station_data.
-    # User said "use views". Assuming overview level data is desired even if filters are present, OR filters apply to charts only.
-    # However, build_where_clause generates WHERE clauses.
-    # We will build a clause for the VIEW (only Date and Line).
-    
-    # Construct overview table name
-    overview_table_name = 'dash_overview' if 'test' in settings.BIGQUERY_TABLE_ID else 'dash_overview'
-    overview_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.{overview_table_name}`"
-    
-    # Default to 'VQC' if stage is invalid for the overview table to avoid double counting
-    overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
-
-    # Base query on dash_overview
-    query = f"""
-        SELECT
-            SUM(total_inward) AS total_inward,
-            SUM(qc_accepted) AS qc_accepted,
-            SUM(testing_accepted) AS testing_accepted,
-            SUM(total_rejection) AS total_rejected,
-            SUM(moved_to_inventory) AS moved_to_inventory,
-            SUM(work_in_progress) AS work_in_progress
-        FROM {overview_table}
-        {where_clause_str}
-    """
-    
-    # Stage-specific filtering is now handled by build_where_clause above
-        
-        # If stage is 'WABI SABI' or 'RT', usually handled by Line filter now. 
-        # But if frontend still sends stage='WABI SABI' (legacy), we might want to map it or ignore if Line is set.
-        # Assuming frontend updates send Line properly.
-
-    try:
-        job_config = QueryJobConfig(query_parameters=query_parameters)
-        query_job = client.query(query, job_config=job_config)
-        results = query_job.result()
-        kpis = [dict(row) for row in results]
-        # Handle case where sum is None
-        result = kpis[0] if kpis else {}
-        return {k: (v if v is not None else 0) for k, v in result.items()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for KPIs: {e}")
-
-def combine_where_clauses(base_clause_str, base_params, additional_conditions):
-    combined_conditions = []
-    if base_clause_str and base_clause_str.strip().lower().startswith("where"):
-        combined_conditions.append(base_clause_str[len("WHERE"):].strip())
-    elif base_clause_str:
-        combined_conditions.append(base_clause_str)
-
-    combined_conditions.extend(additional_conditions)
-
-    if combined_conditions:
-        return f"WHERE {' AND '.join(combined_conditions)}", base_params
-    return "", base_params
+    return fetch_kpi_data(client, start_date, end_date, sizes, skus, line, stage, vendor, settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID)
 
 @app.get("/charts")
 async def get_chart_data(start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
-
-    wip_table = f"`{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.wip_sku_wise`"
-
-    # VQC WIP Query
-    vqc_where, vqc_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, stage='VQC')
-    vqc_wip_query = f"""
-    SELECT sku, SUM(wip_count) as count
-    FROM {wip_table}
-    {vqc_where}
-    GROUP BY sku
-    ORDER BY sku ASC
-    """
-
-    # FT + CS WIP Query (Everything beyond VQC)
-    ft_where, ft_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line)
-    ft_wip_query = f"""
-    SELECT sku, SUM(wip_count) as count
-    FROM {wip_table}
-    {ft_where + " AND " if ft_where else "WHERE "} stage IN ('FT', 'CS')
-    GROUP BY sku
-    ORDER BY sku ASC
-    """
-
-    import concurrent.futures
-
-    def execute_bq(query, params):
-        job = client.query(query, job_config=QueryJobConfig(query_parameters=params))
-        return [dict(row) for row in job.result()]
-
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            vqc_future = executor.submit(execute_bq, vqc_wip_query, vqc_params)
-            ft_future = executor.submit(execute_bq, ft_wip_query, ft_params)
-            
-            vqc_wip_results = vqc_future.result()
-            ft_wip_results = ft_future.result()
-
-        return {
-            "vqc_wip_sku_wise": vqc_wip_results,
-            "ft_wip_sku_wise": ft_wip_results,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying BigQuery for charts: {e}")
+    return fetch_wip_charts_data(client, start_date, end_date, sizes, skus, line, settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID)
 
 @app.get("/skus")
 async def get_skus(table: str = 'master_station_data'):

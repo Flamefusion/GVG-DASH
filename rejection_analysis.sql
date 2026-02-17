@@ -1,4 +1,6 @@
-CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis` AS
+CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis`
+    CLUSTER BY date, line, vendor, sku
+    AS
     WITH rejection_unpivoted AS (
         -- Single scan approach similar to dash_overview
         SELECT

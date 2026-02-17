@@ -21,7 +21,9 @@ def bq_trigger_handler(event, context=None):
 
 def update_dash_overview():
     sql = """
-    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview` AS
+    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.dash_overview`
+    CLUSTER BY event_date, line, vendor, sku
+    AS
     WITH single_scan_funnel AS (
         -- Single scan of the master table
         SELECT
@@ -120,7 +122,9 @@ def update_dash_overview():
 
 def update_wip_sku_wise():
     sql = """
-    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.wip_sku_wise` AS
+    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.wip_sku_wise`
+    CLUSTER BY event_date, line, vendor, sku
+    AS
     SELECT
         vqc_inward_date AS event_date,
         line,
@@ -146,7 +150,9 @@ def update_wip_sku_wise():
 
 def update_rejection_analysis():
     sql = """
-    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis` AS
+    CREATE OR REPLACE TABLE `production-dashboard-482014.dashboard_data.rejection_analysis`
+    CLUSTER BY date, line, vendor, sku
+    AS
     WITH rejection_unpivoted AS (
         -- Single scan approach similar to dash_overview
         SELECT
