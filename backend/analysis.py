@@ -1,7 +1,7 @@
 from google.cloud import bigquery
 from google.cloud.bigquery import ScalarQueryParameter, QueryJobConfig, ArrayQueryParameter
 from typing import Optional, List
-from datetime import date
+from datetime import date, timedelta
 import concurrent.futures
 
 FIXED_REJECTION_ROWS = [
@@ -93,10 +93,16 @@ def build_where_clause(start_date: Optional[date], end_date: Optional[date], siz
     where_clause_str = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
     return where_clause_str, query_parameters
 
-def fetch_kpi_data(client: bigquery.Client, start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], line: Optional[str], stage: Optional[str], vendor: str, project_id: str, dataset_id: str):
+def fetch_kpi_data(client: bigquery.Client, start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], line: Optional[str], stage: Optional[str], vendor: str, project_id: str, dataset_id: str, compare: bool = False):
     overview_table = f"`{project_id}.{dataset_id}.dash_overview`"
     overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
-    where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
+    
+    target_start, target_end = start_date, end_date
+    if compare and start_date and end_date:
+        target_start = start_date - timedelta(days=30)
+        target_end = end_date - timedelta(days=30)
+
+    where_clause_str, query_parameters = build_where_clause(target_start, target_end, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
 
     query = f"""
         SELECT
@@ -117,7 +123,7 @@ def fetch_kpi_data(client: bigquery.Client, start_date: Optional[date], end_date
         result = results[0] if results else {}
         return {k: (v if v is not None else 0) for k, v in dict(result).items()}
     except Exception as e:
-        print(f"Error in fetch_kpi_data: {e}")
+        print(f"Error in fetch_kpi_data (compare={compare}): {e}")
         return {"total_inward": 0, "qc_accepted": 0, "testing_accepted": 0, "total_rejected": 0, "moved_to_inventory": 0, "work_in_progress": 0}
 
 def fetch_wip_charts_data(client: bigquery.Client, start_date: Optional[date], end_date: Optional[date], sizes: Optional[List[str]], skus: Optional[List[str]], line: Optional[str], project_id: str, dataset_id: str):
@@ -149,17 +155,16 @@ def fetch_wip_charts_data(client: bigquery.Client, start_date: Optional[date], e
         print(f"Error in fetch_wip_charts_data: {e}")
         return {"vqc_wip_sku_wise": [], "ft_wip_sku_wise": []}
 
-def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None, stage: Optional[str] = None, vendor: Optional[str] = None):
-    # For Top Rejections (which need reasons/SKUs), use master_station_data (table)
-    base_where_clause_str, query_parameters = build_where_clause(start_date, end_date, sizes, skus, date_column, sku_column, size_column, line, vendor=vendor)
+def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, date_column: str = 'vqc_inward_date', sku_column: str = 'sku', size_column: str = 'size', line: Optional[str] = None, stage: Optional[str] = None, vendor: Optional[str] = None, compare: bool = False):
+    target_start, target_end = start_date, end_date
+    if compare and start_date and end_date:
+        target_start = start_date - timedelta(days=30)
+        target_end = end_date - timedelta(days=30)
 
-    # For Aggregated Stats (KPIs, Trends), use dash_overview
-    # dash_overview now has sku/size and stage, so we include them in overview where clause
-    # Default to 'VQC' stage if none provided to avoid double counting
+    base_where_clause_str, query_parameters = build_where_clause(target_start, target_end, sizes, skus, date_column, sku_column, size_column, line, vendor=vendor)
     overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
-    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor=vendor)
+    overview_where, overview_params = build_where_clause(target_start, target_end, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor=vendor)
     
-    # Construct overview table name
     parts = table.replace('`', '').split('.')
     overview_base = 'dash_overview' if 'test' in table else 'dash_overview'
     if len(parts) == 3:
@@ -167,9 +172,7 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     else:
         overview_table = overview_base 
 
-    # 1. KPIs
     stage_rejection_expr = "(stage_rt_conversion_count + stage_wabi_sabi_count + stage_scrap_count)"
-    
     kpi_query = f"""
     SELECT
         SUM({stage_rejection_expr}) AS total_rejected,
@@ -182,7 +185,16 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     {overview_where}
     """
 
-    # 2. Accepted Vs Rejected Chart
+    if compare:
+        job_config = QueryJobConfig(query_parameters=overview_params)
+        try:
+            query_job = client.query(kpi_query, job_config=job_config)
+            res = list(query_job.result())
+            return res[0] if res else {}
+        except Exception as e:
+            print(f"Error in fetch_analysis_data comparison: {e}")
+            return {}
+
     accepted_col = 'qc_accepted'
     if overview_stage == 'FT':
         accepted_col = 'testing_accepted'
@@ -199,7 +211,6 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     SELECT 'Scrap' as name, SUM(stage_scrap_count) as value FROM {overview_table} {overview_where}
     """
 
-    # 3. Rejection Breakdown chart
     rejection_breakdown_query = f"""
     SELECT 'RT CONVERSION' as name, SUM(stage_rt_conversion_count) as value FROM {overview_table} {overview_where}
     UNION ALL
@@ -208,7 +219,6 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     SELECT 'SCRAP' as name, SUM(stage_scrap_count) as value FROM {overview_table} {overview_where}
     """
 
-    # 4. Rejection Trend chart
     rejection_trend_query = f"""
     SELECT
         FORMAT_DATE('%Y-%m-%d', event_date) AS day,
@@ -219,7 +229,6 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     ORDER BY day
     """
 
-    # For Top Rejections, use rejection_analysis view
     parts = table.replace('`', '').split('.')
     rejection_base = 'rejection_analysis' if 'test' in table else 'rejection_analysis'
     if len(parts) == 3:
@@ -227,24 +236,20 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     else:
         rejection_table = rejection_base
 
-    rej_where_clause_str, rej_query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'date', 'sku', 'size', line)
+    rej_where_clause_str, rej_query_parameters = build_where_clause(target_start, target_end, sizes, skus, 'date', 'sku', 'size', line)
 
-    # 5. Top 10 VQC Rejection chart
     top_vqc_rejections_query = f"""
     SELECT vqc_reason AS name, SUM(count) AS value FROM {rejection_table} {rej_where_clause_str + " AND " if rej_where_clause_str else "WHERE "}stage = 'VQC' GROUP BY 1 ORDER BY value DESC LIMIT 10
     """
 
-    # 6. Top 5 FT Rejection chart
     top_ft_rejections_query = f"""
     SELECT vqc_reason AS name, SUM(count) AS value FROM {rejection_table} {rej_where_clause_str + " AND " if rej_where_clause_str else "WHERE "}stage = 'FT' GROUP BY 1 ORDER BY value DESC LIMIT 5
     """
     
-    # 7. Top 5 CS Rejection chart
     top_cs_rejections_query = f"""
     SELECT vqc_reason AS name, SUM(count) AS value FROM {rejection_table} {rej_where_clause_str + " AND " if rej_where_clause_str else "WHERE "}stage = 'CS' GROUP BY 1 ORDER BY value DESC LIMIT 5
     """
 
-    # 8. Vendor queries
     de_tech_vendor_rejections_query = f"""
     SELECT vqc_reason as name, SUM(count) as value FROM {rejection_table} {rej_where_clause_str + " AND " if rej_where_clause_str else "WHERE "} vendor = '3DE TECH' AND stage = 'VQC' GROUP BY 1 ORDER BY value DESC LIMIT 10
     """
@@ -293,8 +298,12 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
 
     return results
 
-def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None):
-    
+def fetch_report_data(client: bigquery.Client, ring_status_table: str, rejection_analysis_table: str, start_date: Optional[date], end_date: Optional[date], stage: str, vendor: str, sizes: Optional[List[str]] = None, skus: Optional[List[str]] = None, line: Optional[str] = None, compare: bool = False):
+    target_start, target_end = start_date, end_date
+    if compare and start_date and end_date:
+        target_start = start_date - timedelta(days=30)
+        target_end = end_date - timedelta(days=30)
+
     parts = ring_status_table.replace('`', '').split('.')
     overview_base = 'dash_overview' if 'test' in ring_status_table else 'dash_overview'
     if len(parts) >= 2:
@@ -303,7 +312,7 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         overview_table = f"`production-dashboard-482014.dashboard_data.{overview_base}`" 
 
     overview_stage = stage if stage in ['VQC', 'FT', 'CS'] else 'VQC'
-    overview_where, overview_params = build_where_clause(start_date, end_date, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
+    overview_where, overview_params = build_where_clause(target_start, target_end, sizes, skus, 'event_date', 'sku', 'size', line, overview_stage, vendor)
     
     output_expr = "SUM(total_inward)"
     accepted_expr = "SUM(total_accepted)" 
@@ -328,7 +337,18 @@ def get_report_data(client: bigquery.Client, ring_status_table: str, rejection_a
         {overview_where}
     """
     
-    rejection_where, rejection_query_parameters = build_where_clause(start_date, end_date, sizes, skus, 'date', 'sku', 'size', line, stage=stage, vendor=vendor)
+    if compare:
+        job_config_kpi = QueryJobConfig(query_parameters=overview_params)
+        try:
+            job = client.query(kpi_query, job_config=job_config_kpi)
+            res = list(job.result())
+            return dict(res[0]) if res else {"output": 0, "accepted": 0, "rejected": 0}
+        except Exception as e:
+            print(f"Comparison KPI Error in Report: {e}")
+            return {"output": 0, "accepted": 0, "rejected": 0}
+
+    # Rejection Analysis (Detailed) - keeps using filters (SKU/Size)
+    rejection_where, rejection_query_parameters = build_where_clause(target_start, target_end, sizes, skus, 'date', 'sku', 'size', line, stage=stage, vendor=vendor)
 
     rejection_query = f"""
         SELECT 

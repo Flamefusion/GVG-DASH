@@ -115,6 +115,7 @@ const Report: React.FC = () => {
     {
       title: 'OUTPUT',
       value: reportData.kpis.output,
+      comparisonValue: reportData.comparison_kpis?.output,
       icon: Package,
       color: '#3b82f6',
       show: true,
@@ -122,6 +123,7 @@ const Report: React.FC = () => {
     {
       title: 'ACCEPTED',
       value: reportData.kpis.accepted,
+      comparisonValue: reportData.comparison_kpis?.accepted,
       icon: CheckCircle,
       color: '#10b981', // Green
       show: true,
@@ -129,6 +131,7 @@ const Report: React.FC = () => {
     {
       title: 'REJECTED',
       value: reportData.kpis.rejected,
+      comparisonValue: reportData.comparison_kpis?.rejected,
       icon: XCircle,
       color: '#ef4444', // Red
       show: true,
@@ -136,6 +139,7 @@ const Report: React.FC = () => {
     {
       title: 'YIELD',
       value: yieldValue,
+      comparisonValue: reportData.comparison_kpis ? ((reportData.comparison_kpis.accepted / (reportData.comparison_kpis.accepted + reportData.comparison_kpis.rejected)) * 100) : undefined,
       suffix: '%',
       icon: TrendingUp,
       color: '#8b5cf6',
@@ -144,6 +148,8 @@ const Report: React.FC = () => {
   ];
 
   const visibleKpis = mainKpis.filter(kpi => kpi.show);
+  const yieldNumeric = parseFloat(yieldValue.toString());
+  const isYieldWarning = yieldNumeric < 91 && totalProcessed > 0;
 
   const rejectionCategories = [
     { key: 'ASSEMBLY', title: 'ASSEMBLY', icon: Layers, color: '#f59e0b' },
@@ -289,10 +295,12 @@ const Report: React.FC = () => {
                 <KPICard
                   title={card.title}
                   value={card.value}
+                  comparisonValue={card.comparisonValue}
                   suffix={card.suffix || ''}
                   icon={card.icon}
                   color={card.color}
                   onClick={() => {}}
+                  isWarning={card.title === 'YIELD' ? isYieldWarning : false}
                 />
               </motion.div>
             ))}
@@ -305,6 +313,7 @@ const Report: React.FC = () => {
               const items = reportData.rejections[cat.key] || [];
               const total = items.reduce((acc, item) => acc + item.value, 0);
               const rejectionRate = totalProcessed > 0 ? ((total / totalProcessed) * 100).toFixed(2) : 0;
+              const isCatWarning = parseFloat(rejectionRate.toString()) > 10;
               
               return (
                 <motion.div
@@ -313,12 +322,12 @@ const Report: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + (index * 0.1) }}
                 >
-                                <Card className={`h-full flex flex-col border ${darkMode ? 'bg-black border-white/20' : 'bg-white'}`}>
+                                <Card className={`h-full flex flex-col border transition-all duration-500 ${isCatWarning ? 'ring-2 ring-red-500 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : ''} ${darkMode ? 'bg-black border-white/20' : 'bg-white'}`}>
                                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className={`text-sm font-bold uppercase ${darkMode ? 'text-gray-200' : 'text-gray-600'}`}>
+                                    <CardTitle className={`text-sm font-bold uppercase ${isCatWarning ? 'text-red-500' : (darkMode ? 'text-gray-200' : 'text-gray-600')}`}>
                                       {cat.title} <span className="ml-3">({rejectionRate}%)</span>
                                     </CardTitle>
-                                    <cat.icon className="h-4 w-4" style={{ color: cat.color }} />
+                                    <cat.icon className={`h-4 w-4 ${isCatWarning ? 'animate-pulse' : ''}`} style={{ color: isCatWarning ? '#ef4444' : cat.color }} />
                                   </CardHeader>
                                   <CardContent className="flex-1 flex flex-col">
                                     <div className="flex items-baseline gap-2 mb-4">
@@ -327,16 +336,42 @@ const Report: React.FC = () => {
                                       </div>
                                     </div>
                                     <div className="space-y-3">
-                                      {items.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
-                                          <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-                                            {item.name}
-                                          </span>
-                                          <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
-                                            {item.value}
-                                          </span>
-                                        </div>
-                                      ))}
+                                      {items.map((item, idx) => {
+                                        const itemPercentage = reportData.kpis.rejected > 0 ? (item.value / reportData.kpis.rejected) * 100 : 0;
+                                        const isItemWarning = itemPercentage > 10;
+                                        
+                                        return (
+                                          <div key={idx} className="relative">
+                                            {isItemWarning ? (
+                                              <motion.div
+                                                animate={{ 
+                                                  outlineColor: ["rgba(239, 68, 68, 1)", "rgba(239, 68, 68, 0)", "rgba(239, 68, 68, 1)"],
+                                                  backgroundColor: ["rgba(239, 68, 68, 0.15)", "rgba(239, 68, 68, 0.05)", "rgba(239, 68, 68, 0.15)"]
+                                                }}
+                                                transition={{ repeat: Infinity, duration: 1.5 }}
+                                                className="flex justify-between items-start text-sm outline-[2px] outline-solid rounded-md p-2 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                                              >
+                                                <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
+                                                  <AlertTriangle size={12} className="animate-pulse" />
+                                                  {item.name}
+                                                </span>
+                                                <span className="text-red-700 dark:text-red-300 font-black ml-2">
+                                                  {item.value} ({(itemPercentage).toFixed(1)}%)
+                                                </span>
+                                              </motion.div>
+                                            ) : (
+                                              <div className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
+                                                <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+                                                  {item.name}
+                                                </span>
+                                                <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
+                                                  {item.value}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                       {items.length === 0 && (
                                         <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                                           No rejections recorded

@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from analysis import (
     fetch_analysis_data, 
     build_where_clause, 
-    get_report_data, 
+    fetch_report_data, 
     get_rejection_report_data, 
     get_category_report_data, 
     get_forecast_data,
@@ -192,13 +192,26 @@ async def get_report(
     if not client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized")
     
-    table_to_use = RING_STATUS_TABLE
-    # Assuming Wabi Sabi data (if separate) is now merged or handled appropriately in ring_status
-    # If there are specific table requirements for Wabi Sabi reports, adjustments might be needed here.
-    
+    import concurrent.futures
     try:
-        data = get_report_data(client, table_to_use, REJECTION_ANALYSIS_TABLE, start_date, end_date, stage, vendor, sizes, skus, line)
-        return data
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            data_future = executor.submit(
+                fetch_report_data, client, RING_STATUS_TABLE, REJECTION_ANALYSIS_TABLE, 
+                start_date, end_date, stage, vendor, sizes, skus, line
+            )
+            compare_future = executor.submit(
+                fetch_report_data, client, RING_STATUS_TABLE, REJECTION_ANALYSIS_TABLE, 
+                start_date, end_date, stage, vendor, sizes, skus, line, compare=True
+            )
+            
+            result = data_future.result()
+            compare_result = compare_future.result()
+            
+            # If compare_future returns full dict (because it's the same function), we only need its 'kpis'
+            comparison_kpis = compare_result if isinstance(compare_result, dict) and 'kpis' not in compare_result else compare_result.get('kpis', {})
+            
+            result['comparison_kpis'] = comparison_kpis
+            return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting report data: {e}")
 
@@ -260,10 +273,15 @@ async def get_home_summary(
 
     import concurrent.futures
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             kpi_future = executor.submit(
                 fetch_kpi_data, client, start_date, end_date, sizes, skus, line, stage, vendor, 
                 settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID
+            )
+            # Fetch comparison data (previous month)
+            compare_future = executor.submit(
+                fetch_kpi_data, client, start_date, end_date, sizes, skus, line, stage, vendor, 
+                settings.BIGQUERY_PROJECT_ID, settings.BIGQUERY_DATASET_ID, compare=True
             )
             chart_future = executor.submit(
                 fetch_wip_charts_data, client, start_date, end_date, sizes, skus, line, 
@@ -273,16 +291,25 @@ async def get_home_summary(
                 fetch_analysis_data, client, TABLE, start_date, end_date, sizes, skus, 
                 date_column, 'sku', 'size', line, stage, vendor
             )
+            # Fetch comparison data for analysis specific kpis
+            compare_analysis_future = executor.submit(
+                fetch_analysis_data, client, TABLE, start_date, end_date, sizes, skus, 
+                date_column, 'sku', 'size', line, stage, vendor, compare=True
+            )
             
             # Explicitly wait for and extract results to ensure they are serializable dicts
             kpi_results = kpi_future.result()
+            compare_results = compare_future.result()
             chart_results = chart_future.result()
             analysis_results = analysis_future.result()
+            compare_analysis_results = compare_analysis_future.result()
             
             return {
                 "kpis": kpi_results,
+                "comparison_kpis": compare_results,
                 "charts": chart_results,
-                "analysis": analysis_results
+                "analysis": analysis_results,
+                "comparison_analysis_kpis": compare_analysis_results
             }
     except Exception as e:
         print(f"Home Summary Error: {e}")

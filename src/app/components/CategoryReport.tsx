@@ -128,16 +128,42 @@ export const CategoryReport: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
-                        <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
-                          {item.name}
-                        </span>
-                        <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
+                    {items.map((item, idx) => {
+                      const itemPercentage = (item.value / outcomeTotal) * 100;
+                      const isItemWarning = itemPercentage > 10;
+
+                      return (
+                        <div key={idx} className="relative">
+                          {isItemWarning ? (
+                            <motion.div
+                              animate={{ 
+                                outlineColor: ["rgba(239, 68, 68, 1)", "rgba(239, 68, 68, 0)", "rgba(239, 68, 68, 1)"],
+                                backgroundColor: ["rgba(239, 68, 68, 0.15)", "rgba(239, 68, 68, 0.05)", "rgba(239, 68, 68, 0.15)"]
+                              }}
+                              transition={{ repeat: Infinity, duration: 1.5 }}
+                              className="flex justify-between items-start text-sm outline-[2px] outline-solid rounded-md p-2 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                            >
+                              <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
+                                <AlertCircle size={12} className="animate-pulse" />
+                                {item.name}
+                              </span>
+                              <span className="text-red-700 dark:text-red-300 font-black ml-2">
+                                {item.value} ({(itemPercentage).toFixed(1)}%)
+                              </span>
+                            </motion.div>
+                          ) : (
+                            <div className="flex justify-between items-start text-sm border-b border-gray-100 dark:border-gray-700 pb-2 last:border-0">
+                              <span className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} font-medium`}>
+                                {item.name}
+                              </span>
+                              <span className={`${darkMode ? 'text-gray-100' : 'text-gray-900'} font-bold ml-2`}>
+                                {item.value}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     {items.length === 0 && (
                       <div className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                         No rejections recorded
