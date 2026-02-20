@@ -418,6 +418,65 @@ async def get_last_updated():
         except Exception as fallback_e:
             raise HTTPException(status_code=500, detail=f"Error querying BigQuery for last updated time: {fallback_e}")
 
+@app.get("/predict-serial")
+async def predict_serial(serial_number: str):
+    if not client:
+        raise HTTPException(status_code=500, detail="BigQuery client not initialized")
+    
+    query = f"""
+    WITH input_data AS (
+        SELECT vendor, sku, size, line, SUBSTR(serial_number, 8, 3) as pcb,
+               EXTRACT(DAYOFWEEK FROM CURRENT_DATE()) as day_of_week,
+               EXTRACT(MONTH FROM CURRENT_DATE()) as month
+        FROM {TABLE}
+        WHERE serial_number = @serial_number
+        LIMIT 1
+    )
+    SELECT 
+        (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_vqc_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_vqc_rejected_probs) as p WHERE p.label = 1) as vqc_risk,
+        (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_ft_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_ft_rejected_probs) as p WHERE p.label = 1) as ft_risk,
+        (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_cs_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_cs_rejected_probs) as p WHERE p.label = 1) as cs_risk
+    """
+    
+    try:
+        job_config = QueryJobConfig(query_parameters=[
+            ScalarQueryParameter("serial_number", "STRING", serial_number)
+        ])
+        results = list(client.query(query, job_config=job_config).result())
+        if not results or results[0]['vqc_risk'] is None:
+            # Try to infer from SKU/Vendor if serial not found in master yet
+            fallback_query = f"""
+            WITH input_data AS (
+                SELECT @serial_number as serial_number, 'PRODUCTION' as line, 'IHC' as vendor, 'S10' as sku, '10' as size, '000' as pcb,
+                       EXTRACT(DAYOFWEEK FROM CURRENT_DATE()) as day_of_week,
+                       EXTRACT(MONTH FROM CURRENT_DATE()) as month
+            )
+            SELECT 
+                (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_vqc_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_vqc_rejected_probs) as p WHERE p.label = 1) as vqc_risk,
+                (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_ft_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_ft_rejected_probs) as p WHERE p.label = 1) as ft_risk,
+                (SELECT p.prob FROM ML.PREDICT(MODEL `{settings.BIGQUERY_PROJECT_ID}.{settings.BIGQUERY_DATASET_ID}.model_cs_prediction`, (SELECT * FROM input_data)), UNNEST(predicted_is_cs_rejected_probs) as p WHERE p.label = 1) as cs_risk
+            """
+            # This is a bit too much fallback, let's just return 404 if not found
+            raise HTTPException(status_code=404, detail="Serial number not found in master data")
+            
+        res = results[0]
+        vqc = round(res['vqc_risk'] * 100, 2)
+        ft = round(res['ft_risk'] * 100, 2)
+        cs = round(res['cs_risk'] * 100, 2)
+        overall_pass = round((1-res['vqc_risk']) * (1-res['ft_risk']) * (1-res['cs_risk']) * 100, 2)
+        
+        return {
+            "serial_number": serial_number,
+            "vqc_risk": vqc,
+            "ft_risk": ft,
+            "cs_risk": cs,
+            "overall_pass_probability": overall_pass,
+            "recommendation": "PROCEED" if overall_pass > 85 else "HIGH RISK" if overall_pass < 60 else "MONITOR"
+        }
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/kpi-data/{kpi_name}")
 async def get_kpi_data(kpi_name: str, page: int = 1, limit: int = 100, start_date: Optional[date] = None, end_date: Optional[date] = None, sizes: Optional[List[str]] = Query(None, alias="size"), skus: Optional[List[str]] = Query(None, alias="sku"), download: bool = False, date_column: str = 'vqc_inward_date', stage: Optional[str] = None, line: Optional[str] = None):

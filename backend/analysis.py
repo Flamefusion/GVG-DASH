@@ -665,11 +665,10 @@ def get_forecast_data(client: bigquery.Client, start_date: date, end_date: date,
 
     prediction_query = f"""
     WITH distribution AS (
-        SELECT vendor, sku, size, line, pcb,
+        SELECT vendor, sku, size, line, SUBSTR(serial_number, 8, 3) as pcb,
                EXTRACT(DAYOFWEEK FROM DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY)) as day_of_week,
                EXTRACT(MONTH FROM DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY)) as month
         FROM `production-dashboard-482014.dashboard_data.master_station_data`
-        JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
         {where_master}
         LIMIT 2000
     ),
@@ -703,8 +702,7 @@ def get_forecast_data(client: bigquery.Client, start_date: date, end_date: date,
         SELECT d as forecast_date FROM UNNEST(GENERATE_DATE_ARRAY(DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY), DATE_ADD(CURRENT_DATE(), INTERVAL 7 DAY))) as d
     ),
     base_dist AS (
-        SELECT vendor, sku, size, line, pcb FROM `production-dashboard-482014.dashboard_data.master_station_data`
-        JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
+        SELECT vendor, sku, size, line, SUBSTR(serial_number, 8, 3) as pcb FROM `production-dashboard-482014.dashboard_data.master_station_data`
         {where_master} LIMIT 200
     ),
     forecast_features AS (
@@ -723,11 +721,10 @@ def get_forecast_data(client: bigquery.Client, start_date: date, end_date: date,
     WITH high_risk AS (
         SELECT sku, AVG(p.prob) as risk
         FROM ML.PREDICT(MODEL `production-dashboard-482014.dashboard_data.model_vqc_prediction`, (
-            SELECT vendor, sku, size, line, pcb, 
+            SELECT vendor, sku, size, line, SUBSTR(serial_number, 8, 3) as pcb, 
                    EXTRACT(DAYOFWEEK FROM CURRENT_DATE()) as day_of_week, 
                    EXTRACT(MONTH FROM CURRENT_DATE()) as month 
             FROM `production-dashboard-482014.dashboard_data.master_station_data`
-            JOIN `production-dashboard-482014.dashboard_data.ml_training_data` {join_using}
             {where_master}
             LIMIT 1000
         )),
