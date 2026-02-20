@@ -103,12 +103,35 @@ export interface CategoryReportData {
 export interface ForecastData {
   kpis: {
     forecasted_yield: number;
-    predicted_vqc_reject: number;
-    predicted_ft_reject: number;
-    predicted_cs_reject: number;
+    forecasted_good_units: number;
+    forecasted_rejection_units: number;
+    model_confidence: number;
   };
-  yieldTrend: Array<{ day: string; predicted_yield: number }>;
+  yieldTrend: Array<{ 
+    day: string; 
+    predicted_yield: number;
+    good_units: number;
+    rejection_units: number;
+    rf_yield: number;
+    xgb_yield: number;
+  }>;
   topPredictedRejections: Array<{ name: string; value: number }>;
+  detailedForecast: Array<{
+    sku: string;
+    vendor: string;
+    size: string;
+    line: string;
+    forecasted_yield_pct: number;
+    forecasted_good_units: number;
+    forecasted_rejection_units: number;
+    model_confidence_pct: number;
+    top_rejection_reason_1: string;
+    rejection_prob_1_pct: number;
+    top_rejection_reason_2: string;
+    rejection_prob_2_pct: number;
+    top_rejection_reason_3: string;
+    rejection_prob_3_pct: number;
+  }>;
 }
 
 export interface AnalysisData {
