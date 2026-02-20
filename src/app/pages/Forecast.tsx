@@ -90,9 +90,9 @@ const Forecast: React.FC = () => {
 
   const kpiCards = forecastData?.kpis ? [
     { title: 'FORECASTED YIELD', value: forecastData?.kpis?.forecasted_yield, suffix: '%', icon: TrendingUp, color: '#10b981' },
-    { title: 'PREDICTED VQC REJECT', value: forecastData?.kpis?.predicted_vqc_reject, suffix: '%', icon: ShieldAlert, color: '#ef4444' },
-    { title: 'PREDICTED FT REJECT', value: forecastData?.kpis?.predicted_ft_reject, suffix: '%', icon: AlertCircle, color: '#f59e0b' },
-    { title: 'PREDICTED CS REJECT', value: forecastData?.kpis?.predicted_cs_reject, suffix: '%', icon: Zap, color: '#3b82f6' },
+    { title: 'FORECASTED GOOD UNITS', value: forecastData?.kpis?.forecasted_good_units, suffix: '', icon: CheckCircle2, color: '#3b82f6' },
+    { title: 'FORECASTED REJECTS', value: forecastData?.kpis?.forecasted_rejection_units, suffix: '', icon: ShieldAlert, color: '#ef4444' },
+    { title: 'MODEL CONFIDENCE', value: forecastData?.kpis?.model_confidence, suffix: '%', icon: BrainCircuit, color: '#8b5cf6' },
   ] : [];
 
   const BAR_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#a4de6c', '#d0ed57', '#ffc658', '#8884d8', '#82ca9d'];
@@ -103,7 +103,7 @@ const Forecast: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <BrainCircuit className={darkMode ? 'text-blue-400' : 'text-blue-600'} size={32} />
-          <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Forecast Engine</h1>
+          <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>AI Forecast Engine</h1>
         </div>
         {localLoading && (
           <div className="flex items-center gap-2 text-blue-500">
@@ -139,7 +139,7 @@ const Forecast: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Calendar className="text-emerald-500" size={20} />
-                Next 7 Days Yield Forecast (Time-Series)
+                Next 7 Days Yield Forecast
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -149,12 +149,14 @@ const Forecast: React.FC = () => {
                     <LineChart data={forecastData.yieldTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#333' : '#eee'} vertical={false} />
                       <XAxis dataKey="day" stroke={darkMode ? '#888' : '#666'} tick={{ fontSize: 12 }} />
-                      <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke={darkMode ? '#888' : '#666'} tick={{ fontSize: 12 }} />
+                      <YAxis domain={[0, 100]} stroke={darkMode ? '#888' : '#666'} tick={{ fontSize: 12 }} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: darkMode ? '#111' : '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         itemStyle={{ color: '#10b981' }}
                       />
-                      <Line type="monotone" dataKey="predicted_yield" stroke="#10b981" strokeWidth={4} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                      <Line type="monotone" dataKey="predicted_yield" name="Ensemble Yield %" stroke="#10b981" strokeWidth={4} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                      <Line type="monotone" dataKey="rf_yield" name="RF Model %" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                      <Line type="monotone" dataKey="xgb_yield" name="XGB Model %" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -262,8 +264,43 @@ const Forecast: React.FC = () => {
             <Card className={`border h-full ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent shadow-lg'}`}>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                        <BarChart3 className="text-rose-500" size={20} />
-                        High Risk Rejection Reasons (Predicted)
+                        <BarChart3 className="text-blue-500" size={20} />
+                        Forecasted Units (Next 7 Days)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-80">
+                        {forecastData?.yieldTrend ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={forecastData.yieldTrend}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#333' : '#eee'} />
+                            <XAxis dataKey="day" stroke={darkMode ? '#888' : '#666'} tick={{ fontSize: 12 }} />
+                            <YAxis stroke={darkMode ? '#888' : '#666'} tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: darkMode ? '#111' : '#fff', border: 'none', borderRadius: '12px' }}
+                            />
+                            <Bar dataKey="good_units" name="Good Units" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="rejection_units" name="Rejection Units" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                        ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">Loading unit data...</div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
+
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+        >
+            <Card className={`border h-full ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent shadow-lg'}`}>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <AlertCircle className="text-rose-500" size={20} />
+                        Predicted Rejection Reasons (Overall)
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -278,7 +315,7 @@ const Forecast: React.FC = () => {
                                 cursor={{ fill: 'transparent' }}
                                 contentStyle={{ backgroundColor: darkMode ? '#111' : '#fff', border: 'none', borderRadius: '12px' }}
                             />
-                            <Bar dataKey="value" name="Predicted Occurrence" radius={[0, 4, 4, 0]}>
+                            <Bar dataKey="value" name="Avg Probability %" radius={[0, 4, 4, 0]}>
                                 {forecastData.topPredictedRejections.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                                 ))}
@@ -286,49 +323,118 @@ const Forecast: React.FC = () => {
                             </BarChart>
                         </ResponsiveContainer>
                         ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">Loading risk data...</div>
+                        <div className="flex items-center justify-center h-full text-gray-400">Loading reasons...</div>
                         )}
                     </div>
                 </CardContent>
             </Card>
         </motion.div>
+      </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
-        className="flex flex-col gap-6"
+        className="mb-8"
       >
-        <div className={`p-6 rounded-2xl border flex-1 ${darkMode ? 'bg-blue-900/10 border-blue-800/30' : 'bg-blue-50 border-blue-100'}`}>
-          <h3 className={`text-lg font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-            <Zap size={20} />
-            AI Insights & Intelligence
-          </h3>
-          <p className={`text-sm leading-relaxed ${darkMode ? 'text-blue-300/80' : 'text-blue-700/80'}`}>
-            Based on current WIP distribution and SKU complexity, we expect a {forecastData?.kpis?.predicted_vqc_reject ?? '--'}% rejection rate at VQC for the upcoming batches. 
-            <br/><br/>
-            <strong>Critical Alert:</strong> "SENSOR ISSUE" and "BATTERY ISSUE" show a 12% higher correlation with current SKU S11 batches. It is recommended to calibrate the sensor testing jig before the next shift starts.
-          </p>
-        </div>
-
-            <div className={`p-6 rounded-2xl border flex-1 ${darkMode ? 'bg-purple-900/10 border-purple-800/30' : 'bg-purple-50 border-purple-100'}`}>
-                <h3 className={`text-lg font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
-                    <BrainCircuit size={20} />
-                    Learning Status
-                </h3>
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <span className={`text-xs ${darkMode ? 'text-purple-300/60' : 'text-purple-700/60'}`}>Model Training Accuracy</span>
-                        <span className={`text-xs font-bold ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>94.2%</span>
-                    </div>
-                    <div className="h-1.5 bg-purple-200 dark:bg-purple-900/40 rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500" style={{ width: '94%' }} />
-                    </div>
-                    <p className={`text-[10px] italic ${darkMode ? 'text-purple-300/40' : 'text-purple-700/40'}`}>
-                        * XGBoost model retrained 14 hours ago using the latest 50,000 records.
-                    </p>
-                </div>
+        <Card className={`border ${darkMode ? 'bg-black border-white/20' : 'bg-white border-transparent shadow-lg'}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BarChart3 className="text-purple-500" size={20} />
+              SKU-wise Detailed Forecast & Predicted Reasons
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className={`border-b ${darkMode ? 'border-white/10' : 'border-gray-100'}`}>
+                    <th className="p-3">SKU</th>
+                    <th className="p-3">Vendor</th>
+                    <th className="p-3">Size</th>
+                    <th className="p-3">Yield %</th>
+                    <th className="p-3">Good/Total</th>
+                    <th className="p-3">Model Conf.</th>
+                    <th className="p-3">Top Rejection Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {forecastData?.detailedForecast?.map((row: any, idx: number) => (
+                    <tr key={idx} className={`border-b ${darkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-50 hover:bg-gray-50'} transition-colors`}>
+                      <td className="p-3 font-medium">{row.sku}</td>
+                      <td className="p-3">{row.vendor}</td>
+                      <td className="p-3">{row.size}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span className={row.forecasted_yield_pct > 90 ? 'text-emerald-500' : row.forecasted_yield_pct > 70 ? 'text-amber-500' : 'text-rose-500'}>
+                            {row.forecasted_yield_pct}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">{row.forecasted_good_units} / {row.forecasted_good_units + row.forecasted_rejection_units}</td>
+                      <td className="p-3">
+                        <div className="w-full bg-gray-200 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden min-w-[60px]">
+                          <div className="h-full bg-purple-500" style={{ width: `${row.model_confidence_pct}%` }} />
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-xs">{row.top_rejection_reason_1}</span>
+                          <span className="text-[10px] opacity-60">{row.rejection_prob_1_pct}% probability</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="flex flex-col gap-6"
+        >
+          <div className={`p-6 rounded-2xl border flex-1 ${darkMode ? 'bg-blue-900/10 border-blue-800/30' : 'bg-blue-50 border-blue-100'}`}>
+            <h3 className={`text-lg font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+              <Zap size={20} />
+              AI Insights & Intelligence
+            </h3>
+            <p className={`text-sm leading-relaxed ${darkMode ? 'text-blue-300/80' : 'text-blue-700/80'}`}>
+              Based on the latest ML ensemble (RF + XGBoost), we forecast an overall yield of {forecastData?.kpis?.forecasted_yield ?? '--'}% for the next 7 days. 
+              <br/><br/>
+              <strong>Key Observation:</strong> {forecastData?.topPredictedRejections?.[0]?.name ?? 'No major issues'} is predicted as the top rejection risk with a {forecastData?.topPredictedRejections?.[0]?.value ?? '--'}% average probability across upcoming batches.
+            </p>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85 }}
+          className="flex flex-col gap-6"
+        >
+          <div className={`p-6 rounded-2xl border flex-1 ${darkMode ? 'bg-purple-900/10 border-purple-800/30' : 'bg-purple-50 border-purple-100'}`}>
+            <h3 className={`text-lg font-bold mb-3 flex items-center gap-2 ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
+              <BrainCircuit size={20} />
+              Model Status
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className={`text-xs ${darkMode ? 'text-purple-300/60' : 'text-purple-700/60'}`}>Average Confidence</span>
+                <span className={`text-xs font-bold ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>{forecastData?.kpis?.model_confidence ?? '--'}%</span>
+              </div>
+              <div className="h-1.5 bg-purple-200 dark:bg-purple-900/40 rounded-full overflow-hidden">
+                <div className="h-full bg-purple-500" style={{ width: `${forecastData?.kpis?.model_confidence ?? 0}%` }} />
+              </div>
+              <p className={`text-[10px] italic ${darkMode ? 'text-purple-300/40' : 'text-purple-700/40'}`}>
+                * Pipeline retrained using the latest 100+ days of history. Ensemble weight: 50% Random Forest / 50% XGBoost.
+              </p>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>
