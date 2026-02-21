@@ -22,7 +22,7 @@ TABLE_FORECAST      = f"{BQ_PROJECT_ID}.{BQ_DATASET}.forecast_7day"
 
 # --- Training Date Range ---
 # Only use data from this window to train the models
-TRAIN_START_DATE    = "2025-11-01"
+TRAIN_START_DATE    = "2025-12-01"
 TRAIN_END_DATE      = "2026-02-19"
 
 # --- Forecast Horizon ---
@@ -50,6 +50,12 @@ XGB_WEIGHT          = 0.5
 
 # Top N rejection reasons to surface per SKU+Vendor combo in the forecast
 TOP_N_REJECTION_REASONS = 3
+
+# --- Suppression Settings (for Rare SKUs) ---
+# Only include SKUs that have appeared in the last 14 days
+SUPPRESS_RARE_THRESHOLD_DAYS = 14
+# Only include SKUs that have appeared at least 5 times in the total training window
+MIN_FREQUENCY_TOTAL = 5
 
 # --- Status values considered as REJECTED at each stage ---
 VQC_REJECTED_STATUSES = {'SCRAP', 'WABI SABI', 'RT CONVERSION'}
