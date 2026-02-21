@@ -176,8 +176,8 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
     kpi_query = f"""
     SELECT
         SUM({stage_rejection_expr}) AS total_rejected,
-        SUM(`3de_tech_rejection`) AS de_tech_rejection,
-        SUM(ihc_rejection) AS ihc_rejection,
+        SUM(IF(vendor = '3DE TECH', {stage_rejection_expr}, 0)) AS de_tech_stage_rejection,
+        SUM(IF(vendor = 'IHC', {stage_rejection_expr}, 0)) AS ihc_stage_rejection,
         SUM(vqc_rejection) AS vqc_rejection,
         SUM(ft_rejection) AS ft_rejection,
         SUM(cs_rejection) AS cs_rejection
@@ -295,6 +295,26 @@ def fetch_analysis_data(client: bigquery.Client, table: str, start_date: Optiona
             except Exception as e:
                 print(f"Query {key} generated an exception: {e}")
                 results[key] = {} if key == "kpis" else []
+
+    # Post-process to add "Others" category to rejection charts for accurate percentage calculation
+    if results.get('kpis'):
+        k = results['kpis']
+        
+        # Map chart keys to their respective total rejection KPI keys
+        rejection_mapping = {
+            "topVqcRejections": k.get("vqc_rejection", 0),
+            "topFtRejections": k.get("ft_rejection", 0),
+            "topCsRejections": k.get("cs_rejection", 0),
+            "deTechVendorRejections": k.get("de_tech_stage_rejection", 0),
+            "ihcVendorRejections": k.get("ihc_stage_rejection", 0)
+        }
+
+        for chart_key, total_val in rejection_mapping.items():
+            if chart_key in results and results[chart_key] and total_val:
+                current_sum = sum(item['value'] for item in results[chart_key])
+                others_val = (total_val or 0) - current_sum
+                if others_val > 0:
+                    results[chart_key].append({"name": "Others", "value": int(others_val)})
 
     return results
 
