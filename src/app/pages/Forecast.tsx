@@ -103,7 +103,12 @@ const Forecast: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <BrainCircuit className={darkMode ? 'text-blue-400' : 'text-blue-600'} size={32} />
-          <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>AI Forecast Engine</h1>
+          <div>
+            <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>AI Forecast Engine</h1>
+            <p className="text-xs mt-1 font-bold text-rose-600 dark:text-rose-400">
+              (We are still working on training the AI with our data, the data shown here are samples)
+            </p>
+          </div>
         </div>
         {localLoading && (
           <div className="flex items-center gap-2 text-blue-500">
