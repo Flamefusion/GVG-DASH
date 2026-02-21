@@ -33,14 +33,14 @@ ROLLING_WINDOW_DAYS = 14  # Rolling average window for predicting upcoming batch
 
 # --- Model Settings ---
 # Number of trees in the Random Forest (higher = more accurate but slower)
-RF_N_ESTIMATORS     = 300
-RF_MAX_DEPTH        = 10
+RF_N_ESTIMATORS     = 1000
+RF_MAX_DEPTH        = 12
 RF_RANDOM_STATE     = 42
 
 # XGBoost settings
-XGB_N_ESTIMATORS    = 300
-XGB_LEARNING_RATE   = 0.05
-XGB_MAX_DEPTH       = 6
+XGB_N_ESTIMATORS    = 1000
+XGB_LEARNING_RATE   = 0.03
+XGB_MAX_DEPTH       = 8
 XGB_RANDOM_STATE    = 42
 
 # Ensemble weight: final_pred = RF_WEIGHT * rf_pred + XGB_WEIGHT * xgb_pred
