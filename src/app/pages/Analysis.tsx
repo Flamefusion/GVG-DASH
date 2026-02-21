@@ -149,6 +149,10 @@ const Analysis: React.FC = () => {
         <VendorRejectionCharts 
           deTechData={analysisData.deTechVendorRejections}
           ihcData={analysisData.ihcVendorRejections}
+          deTechTotal={analysisData.kpis.de_tech_stage_rejection}
+          ihcTotal={analysisData.kpis.ihc_stage_rejection}
+          vqcTotal={analysisData.kpis.vqc_rejection}
+          ftTotal={analysisData.kpis.ft_rejection}
         />
       </motion.div>
 

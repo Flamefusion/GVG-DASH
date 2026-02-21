@@ -33,8 +33,9 @@ export const TopRejectionsCharts: React.FC<TopRejectionsChartsProps> = ({ topVqc
     }
   };
 
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value, expanded }) => {
-    if (!expanded || percent === 0) return null;
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, total, expanded }) => {
+    if (!expanded || value === 0) return null;
+    const percent = value / total;
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -42,47 +43,56 @@ export const TopRejectionsCharts: React.FC<TopRejectionsChartsProps> = ({ topVqc
 
     return (
       <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight="bold">
-        {`${value} (${(percent * 100).toFixed(0)}%)`}
+        {`${value} (${(percent * 100).toFixed(1)}%)`}
       </text>
     );
   };
 
-  const renderPieChart = (data: ChartData[], title: string, color: string, expanded = false) => (
-    <div ref={expanded ? chartRef : null} className="w-full h-full">
-      <ResponsiveContainer width="100%" height={expanded ? "100%" : 300}>
-        <PieChart>
-          <Pie 
-            data={data} 
-            dataKey="value" 
-            nameKey="name" 
-            cx="50%" 
-            cy="50%" 
-            outerRadius={expanded ? 200 : 80} 
-            fill={color} 
-            labelLine={!expanded}
-            label={expanded ? (props) => renderCustomLabel({ ...props, expanded }) : true}
-          >
-            {data.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-          </Pie>
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: darkMode ? '#0a0a0a' : '#fff',
-              border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
-              borderRadius: '8px',
-              color: darkMode ? '#fff' : '#000'
-            }}
-            itemStyle={{ color: darkMode ? '#fff' : '#000' }}
-          />
-          <Legend 
-            layout={expanded ? "horizontal" : "vertical"} 
-            align={expanded ? "center" : "right"} 
-            verticalAlign={expanded ? "bottom" : "top"} 
-            wrapperStyle={expanded ? { paddingTop: '20px' } : { fontSize: '10px', maxWidth: '30%' }} 
-          />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  const renderPieChart = (data: ChartData[], title: string, color: string, expanded = false) => {
+    const chartData = data.filter(item => item.name !== 'Others');
+    const total = data.reduce((acc, curr) => acc + curr.value, 0);
+
+    return (
+      <div ref={expanded ? chartRef : null} className="w-full h-full">
+        <ResponsiveContainer width="100%" height={expanded ? "100%" : 300}>
+          <PieChart>
+            <Pie 
+              data={chartData} 
+              dataKey="value" 
+              nameKey="name" 
+              cx="50%" 
+              cy="50%" 
+              outerRadius={expanded ? 200 : 80} 
+              fill={color} 
+              labelLine={!expanded}
+              label={expanded ? (props) => renderCustomLabel({ ...props, expanded, total }) : (props) => `${((props.value / total) * 100).toFixed(1)}%`}
+            >
+              {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+            </Pie>
+            <Tooltip 
+              formatter={(value: number, name: string) => {
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                return [`${value} (${percentage}%)`, name];
+              }}
+              contentStyle={{
+                backgroundColor: darkMode ? '#0a0a0a' : '#fff',
+                border: darkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid #ccc',
+                borderRadius: '8px',
+                color: darkMode ? '#fff' : '#000'
+              }}
+              itemStyle={{ color: darkMode ? '#fff' : '#000' }}
+            />
+            <Legend 
+              layout={expanded ? "horizontal" : "vertical"} 
+              align={expanded ? "center" : "right"} 
+              verticalAlign={expanded ? "bottom" : "top"} 
+              wrapperStyle={expanded ? { paddingTop: '20px' } : { fontSize: '10px', maxWidth: '30%' }} 
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
 
   return (
     <>
