@@ -27,6 +27,8 @@ export interface AnalysisKPIs {
   total_rejected: number;
   de_tech_rejection: number;
   ihc_rejection: number;
+  de_tech_stage_rejection: number;
+  ihc_stage_rejection: number;
   vqc_rejection: number;
   ft_rejection: number;
   cs_rejection: number;
