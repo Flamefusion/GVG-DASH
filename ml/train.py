@@ -278,6 +278,21 @@ def build_forecast(df, batch_daily, rf, xgb_model, clf, le_reason,
                    yield_features, clf_features, encoders):
     print(f"\n[FORECAST] Generating {config.FORECAST_DAYS}-day forecast...")
 
+    # 1. Filter combos: Suppress rare/inactive SKUs
+    # Calculate total frequency per combo
+    freq = (
+        df.groupby(['sku', 'vendor', 'size', 'line'])
+        .size()
+        .reset_index(name='total_freq')
+    )
+    
+    # Calculate recency per combo (last seen date)
+    recency = (
+        df.groupby(['sku', 'vendor', 'size', 'line'])['event_date']
+        .max()
+        .reset_index(name='last_seen')
+    )
+    
     # Get all unique SKU+Vendor+Size+Line combos seen in training data
     combos = (
         df[['sku', 'vendor', 'size', 'line',
@@ -285,7 +300,24 @@ def build_forecast(df, batch_daily, rf, xgb_model, clf, le_reason,
         .drop_duplicates()
         .reset_index(drop=True)
     )
-    print(f"  └─ Found {len(combos)} unique SKU+Vendor+Size+Line combinations.")
+    
+    combos = combos.merge(freq, on=['sku', 'vendor', 'size', 'line'], how='left')
+    combos = combos.merge(recency, on=['sku', 'vendor', 'size', 'line'], how='left')
+    
+    total_found = len(combos)
+    
+    # Apply Suppression:
+    # - Must have appeared in the last N days
+    # - Must have a minimum total frequency
+    cutoff_date = pd.to_datetime(config.TRAIN_END_DATE) - timedelta(days=config.SUPPRESS_RARE_THRESHOLD_DAYS)
+    
+    combos = combos[
+        (combos['last_seen'] >= cutoff_date) & 
+        (combos['total_freq'] >= config.MIN_FREQUENCY_TOTAL)
+    ].reset_index(drop=True)
+    
+    print(f"  └─ Filtered {total_found} combos down to {len(combos)} active combinations.")
+    print(f"  └─ (Thresholds: Recency >= {config.SUPPRESS_RARE_THRESHOLD_DAYS}d, Freq >= {config.MIN_FREQUENCY_TOTAL})")
 
     # Latest rolling stats per SKU+Vendor (from the last day in training data)
     latest_stats = (
