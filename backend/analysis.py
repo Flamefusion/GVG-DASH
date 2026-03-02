@@ -372,13 +372,14 @@ def fetch_report_data(client: bigquery.Client, ring_status_table: str, rejection
 
     rejection_query = f"""
         SELECT 
+            status,
             rejection_category,
             vqc_reason as reason,
             SUM(count) as value
         FROM {rejection_analysis_table}
         {rejection_where}
-        GROUP BY 1, 2
-        ORDER BY 1, 3 DESC
+        GROUP BY 1, 2, 3
+        ORDER BY 2, 4 DESC
     """
     
     kpis = {}
@@ -392,6 +393,11 @@ def fetch_report_data(client: bigquery.Client, ring_status_table: str, rejection
     except Exception as e:
         print(f"KPI Query Error: {e}")
         kpis = {"output": 0, "accepted": 0, "rejected": 0}
+
+    # Initialize status KPIs
+    kpis['rt_conversion'] = 0
+    kpis['wabi_sabi'] = 0
+    kpis['scrap'] = 0
         
     rejections = []
     try:
@@ -403,10 +409,26 @@ def fetch_report_data(client: bigquery.Client, ring_status_table: str, rejection
 
     grouped_rejections = {}
     for r in rejections:
+        # Aggregate status counts into kpis
+        status = (r.get('status') or "").upper()
+        val = r['value'] or 0
+        if status == 'RT CONVERSION':
+            kpis['rt_conversion'] += val
+        elif status == 'WABI SABI':
+            kpis['wabi_sabi'] += val
+        elif status == 'SCRAP':
+            kpis['scrap'] += val
+
         cat = r['rejection_category']
         if cat not in grouped_rejections:
             grouped_rejections[cat] = []
-        grouped_rejections[cat].append({"name": r['reason'], "value": r['value']})
+        
+        # Check if reason already exists in this category (due to different statuses)
+        existing = next((item for item in grouped_rejections[cat] if item["name"] == r['reason']), None)
+        if existing:
+            existing["value"] += val
+        else:
+            grouped_rejections[cat].append({"name": r['reason'], "value": val})
         
     return {
         "kpis": kpis,

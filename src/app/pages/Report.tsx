@@ -236,6 +236,12 @@ const Report: React.FC = () => {
       content += `${reportFilters.stage} REJECTED - ${reportData.kpis.rejected}\n`;
       content += `YIELD - ${yieldValue}%\n\n`;
 
+      if (reportFilters.stage === 'VQC') {
+        content += `RT CONVERSION  -  ${reportData.kpis.rt_conversion || 0}\n`;
+        content += `WABI- SABI  -  ${reportData.kpis.wabi_sabi || 0}\n`;
+        content += `SCRAP  -  ${reportData.kpis.scrap || 0}\n\n`;
+      }
+
       rejectionCategories.forEach(cat => {
         const items = reportData.rejections[cat.key] || [];
         if (items.length > 0) {

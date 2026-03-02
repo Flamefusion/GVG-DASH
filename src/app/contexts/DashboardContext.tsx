@@ -54,6 +54,9 @@ export interface ReportData {
     output: number;
     accepted: number;
     rejected: number;
+    rt_conversion?: number;
+    wabi_sabi?: number;
+    scrap?: number;
   };
   comparison_kpis?: {
     output: number;
